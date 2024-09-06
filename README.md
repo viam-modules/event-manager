@@ -1,2 +1,2 @@
-# security-eventing
+# security-event-mananger
 Eventing and actioning for security events
