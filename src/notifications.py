@@ -18,9 +18,8 @@ carrier_email_gateways = {
 
 class NotificationSMS():
     type: str="sms"
-    url: str
-    carrier: str
     phone: str
+    preset: str
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -28,6 +27,7 @@ class NotificationSMS():
 class NotificationEmail():
     type: str="email"
     address: str
+    preset: str
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value

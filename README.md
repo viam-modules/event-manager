@@ -1,10 +1,10 @@
-# SAVCAM event-manager modular service
+# event-manager modular service
 
-*event-manager* is a Viam modular component that provides eventing capabilities for SAVCAM (Smart AI Viam Camera) using the generic component API.
+*event-manager* is a Viam modular component that provides eventing capabilities using the generic component API.
 
-The model this module makes available is viam-labs:savcam:event-manager
+The model this module makes available is viam-soleng:generic:event-manager
 
-The SAVCAM event manager is normally used in conjunction with the [SAVCAM mobile app[(https://github.com/viam-labs/SAVCAM-app), which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
+The event manager is normally used in conjunction with a mobile app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
 
 ## Prerequisites
 
@@ -89,7 +89,7 @@ ID of event to delete triggered for. If not specified, will delete triggered acr
 ## Viam Service Configuration
 
 The service configuration uses JSON to describe rules around events.
-The following example configures a single event named "Pets out at night" that triggers when an configured Vision services sees a cat or dog at night, sending an SMS and IFTTT webhook.
+The following example configures two events that trigger when an configured Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug if escalated.
 
 ```json
 {
@@ -118,7 +118,7 @@ The following example configures a single event named "Pets out at night" that t
             "rules": [
                 {
                     "type": "classification",
-                    "detector": "tracker1",
+                    "classifier": "tracker1",
                     "confidence_pct": 0.6,
                     "class_regex": "new-object-detected",                    
                     "cameras": ["vcam1"]
@@ -140,7 +140,7 @@ The following example configures a single event named "Pets out at night" that t
             "rules": [
                 {
                     "type": "classification",
-                    "detector": "tracker2",
+                    "classifier": "tracker2",
                     "confidence_pct": 0.6,
                     "class_regex": "new-object-detected",                    
                     "cameras": ["vcam2"]

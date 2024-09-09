@@ -21,20 +21,21 @@ from . import triggered
 
 import time
 import asyncio
+import datetime
 from enum import Enum
 
 LOGGER = getLogger(__name__)
 
 class Modes(Enum):
-    home = 1
-    away = 2
+    active = 1
+    inactive = 2
 
 class Event():
     name: str
+    notification_settings: list
     is_triggered: bool = False
     last_triggered: float = 0
-    modes: list = ["home"]
-    debounce_interval_secs: int = 300
+    modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     rules: list[rules.RuleDetector|rules.RuleClassifier|rules.RuleTime]
@@ -46,8 +47,14 @@ class Event():
                     self.__dict__["notifications"] = []
                     for item in value:
                         if item["type"] == "sms":
-                            self.__dict__[key].append(notifications.NotificationSMS(**item))
+                            if "sms" in self.notification_settings:
+                                for s in self.notification_settings["sms"]:
+                                    item.phone = s
+                                    self.__dict__[key].append(notifications.NotificationSMS(**item))
                         elif item["type"] == "email":
+                            if "email" in self.notification_settings:
+                                for e in self.notification_settings["email"]:
+                                    item.email = e
                             self.__dict__[key].append(notifications.NotificationEmail(**item))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
@@ -71,7 +78,11 @@ class eventManager(Generic, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam-soleng", "generic"), "event-manager")
     
-    mode: Modes = "home"
+    mode: Modes = "inactive"
+    pause_alerting_on_event_secs: int = 300
+    pause_known_person_secs: int = 3600
+    event_video_capture_padding_secs: int = 10
+    detection_hz: int = 5
     app_client : None
     api_key_id: str
     api_key: str
@@ -90,30 +101,48 @@ class eventManager(Generic, Reconfigurable):
     # Validates JSON Configuration
     @classmethod
     def validate(cls, config: ComponentConfig):
-        return
+        deps = []
+        deps.append(config.attributes.fields["video_capture_cameras"].list_value)
+        deps.append(config.attributes.fields["vision_services"].list_value)
+        action_resources = config.attributes.fields["action_resources"].list_value
+        for r in action_resources:
+            deps.append(r["name"])
+        return deps
 
     # Handles attribute reconfiguration
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
+        # setting this to false ensures that if the event loop is currently running, it will stop
         self.run_loop = False
-
-        self.api_key = config.attributes.fields["app_api_key"].string_value or ''
-        self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
-        self.part_id = config.attributes.fields["part_id"].string_value or ''
 
         attributes = struct_to_dict(config.attributes)
         if attributes.get("mode"):
             self.mode = attributes.get("mode")
         else:
-            self.mode = 'home'
+            self.mode = 'inactive'
+
+        if attributes.get('pause_known_person_secs'):
+            self.pause_known_person_secs = attributes.get('pause_known_person_secs')
+
+        if attributes.get('pause_alerting_on_event_secs'):
+            self.pause_known_person_secs = attributes.get('pause_alerting_on_event_secs')
+
+        if attributes.get('event_video_capture_padding_secs'):
+            self.pause_known_person_secs = attributes.get('event_video_capture_padding_secs')
+
+        if attributes.get('detection_hz'):
+            self.pause_known_person_secs = attributes.get('detection_hz')
 
         self.events = []
         dict_events = attributes.get("events")
         if dict_events is not None:
             for e in dict_events:
+                e.notification_settings = config.attributes.fields["notifications"].list_value
                 event = Event(**e)
                 self.events.append(event)
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['buffers'] = {}
+
+        # restart event loop
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
         return
@@ -126,43 +155,48 @@ class eventManager(Generic, Reconfigurable):
         return await ViamClient.create_from_dial_options(dial_options)
     
     async def manage_events(self):
-        LOGGER.info("Starting SAVCAM event loop")
+        LOGGER.info("Starting event manager")
         
-        if self.use_data_management:
-            self.app_client = await self.viam_connect()
-        
+        event: Event
+        for event in self.events:
+            asyncio.ensure_future(self.event_check_loop(event))
+    
+    async def event_check_loop(self, event):
+        LOGGER.info("Starting event check loop for " + event.name)
         while self.run_loop:
-            event: Event
-            for event in self.events:
-                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.debounce_interval_secs)))):
-                    # reset trigger before evaluating
-                    event.is_triggered = False
-                    rule_results = []
+            if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= self.pause_alerting_on_event_secs)))):
+                start_time = datetime.datetime.now()
+                # reset trigger before evaluating
+                event.is_triggered = False
+                rule_results = []
+                for rule in event.rules:
+                    result = await rules.eval_rule(rule, event.name, self.robot_resources)
+                    rule_results.append(result)
+                if rules.logical_trigger(event.rule_logic_type, rule_results) == True:
+                    event.is_triggered = True
+                    event.last_triggered = time.time()
+                    event_id = str(int(time.time()))
+                    # sleep for additional seconds in order to capture more video
+                    await asyncio.sleep(self.event_video_capture_padding_secs)
+                    rule_index = 0
                     for rule in event.rules:
-                        result = await rules.eval_rule(rule, event.name, self.robot_resources)
-                        rule_results.append(result)
-                    if rules.logical_trigger(event.rule_logic_type, rule_results) == True:
-                        event.is_triggered = True
-                        event.last_triggered = time.time()
-                        event_id = str(int(time.time()))
-                        # sleep for a second in order to capture a bit more images
-                        await asyncio.sleep(1)
-                        # write image sequences leading up to event
-                        rule_index = 0
-                        for rule in event.rules:
-                            if rule_results[rule_index] == True and hasattr(rule, 'cameras'):
-                                for c in rule.cameras:
-                                    out_dir = triggered.copy_image_sequence(c, event.name, event_id)
-                                    if self.use_data_management:
-                                        await triggered.send_data(c, event.name, event_id, self.app_client, self.part_id, out_dir)
-                            rule_index = rule_index + 1
-                        for n in event.notifications:
-                            LOGGER.info(n.type)
-                            notifications.notify(event.name, n)
-                    await asyncio.sleep(.05)
-                else:
-                    await asyncio.sleep(.5)
-
+                        if rule_results[rule_index] == True and hasattr(rule, 'cameras'):
+                            for c in rule.cameras:
+                                # TODO: this part needs to be reworked once the video capture camera module is ready
+                                next
+                        rule_index = rule_index + 1
+                    for n in event.notifications:
+                        LOGGER.info(n.type)
+                        notifications.notify(event.name, n)
+                # try to respect detection_hz as desired speed of detections
+                elapsed = (datetime.datetime.now() - start_time).total_seconds()
+                to_wait = (1 / self.detection_hz) - elapsed
+                if to_wait > 0:
+                    await asyncio.sleep(to_wait)
+            else:
+                # sleep for a bit longer if we know we are not currently checking for this event
+                await asyncio.sleep(.5)
+    
     async def do_command(
                 self,
                 command: Mapping[str, ValueTypes],
