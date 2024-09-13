@@ -102,8 +102,11 @@ class eventManager(Generic, Reconfigurable):
     @classmethod
     def validate(cls, config: ComponentConfig):
         deps = []
-        deps.append(config.attributes.fields["video_capture_cameras"].list_value)
-        deps.append(config.attributes.fields["vision_services"].list_value)
+
+        camera_config = config.attributes.fields["camera_config"].list_value
+        for c in camera_config:
+            deps.append(c["video_capture_camera"])
+            deps.append(c["vision_service"])
         action_resources = config.attributes.fields["action_resources"].list_value
         for r in action_resources:
             deps.append(r["name"])
@@ -140,7 +143,7 @@ class eventManager(Generic, Reconfigurable):
                 event = Event(**e)
                 self.events.append(event)
         self.robot_resources['_deps'] = dependencies
-        self.robot_resources['buffers'] = {}
+        self.robot_resources['camera_config'] = attributes.get("camera_config")
 
         # restart event loop
         self.run_loop = True
@@ -170,7 +173,7 @@ class eventManager(Generic, Reconfigurable):
                 event.is_triggered = False
                 rule_results = []
                 for rule in event.rules:
-                    result = await rules.eval_rule(rule, event.name, self.robot_resources)
+                    result = await rules.eval_rule(rule, self.robot_resources)
                     rule_results.append(result)
                 if rules.logical_trigger(event.rule_logic_type, rule_results) == True:
                     event.is_triggered = True
@@ -180,14 +183,15 @@ class eventManager(Generic, Reconfigurable):
                     await asyncio.sleep(self.event_video_capture_padding_secs)
                     rule_index = 0
                     for rule in event.rules:
-                        if rule_results[rule_index] == True and hasattr(rule, 'cameras'):
+                        if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
                             for c in rule.cameras:
-                                # TODO: this part needs to be reworked once the video capture camera module is ready
-                                next
+                                stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
+                                # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         LOGGER.info(n.type)
                         notifications.notify(event.name, n)
+
                 # try to respect detection_hz as desired speed of detections
                 elapsed = (datetime.datetime.now() - start_time).total_seconds()
                 to_wait = (1 / self.detection_hz) - elapsed

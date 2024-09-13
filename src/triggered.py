@@ -4,77 +4,37 @@ import re
 import asyncio
 from PIL import Image
 from viam.proto.app.data import Filter
+from viam.components.camera import CameraClient, Camera
+from typing import cast
+from datetime import datetime, timedelta
+
 import io
 
 from viam.logging import getLogger
 
 LOGGER = getLogger(__name__)
 
-CAM_BUFFER_SIZE=75
-ROOT_DIR = '/tmp'
+async def request_capture(camera:str, event_video_capture_padding_secs:int, resources:dict):
+    vs = _get_video_store(camera, resources)
 
-def push_buffer(resources, cam_name, img):
-    camera_buffer = _name_clean(cam_name)
-    buffer_index_label = camera_buffer + '_buffer'
-    if resources.get(buffer_index_label) == None:
-        # set buffer position to 0
-        resources[buffer_index_label] = 0
-    else:
-        resources[buffer_index_label] = resources[buffer_index_label] + 1
-        if resources[buffer_index_label] >= CAM_BUFFER_SIZE:
-            resources[buffer_index_label] = 0
-    
-    out_dir = ROOT_DIR + '/' + camera_buffer
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
-    img.save(out_dir + '/' + str(resources[buffer_index_label]) + '.jpg')
+    current_time = datetime.now()
 
-def copy_image_sequence(cam_name, event_name, event_id):
-    camera_buffer = _name_clean(cam_name)
-    src_dir = ROOT_DIR + '/' + camera_buffer
-    out_dir = _label(event_name, camera_buffer, event_id, True)
-    shutil.copytree(src_dir, out_dir)
-    return out_dir
+    # Format the current time
+    formatted_time_current = current_time.strftime('%Y-%m-%d_%H-%M-%S')
 
-async def send_data(cam_name, event_name, event_id, app_client, part_id, path):
-    start_index = _get_oldest_image_index(path)
-    end_index = _get_greatest_image_index(path)
-    index = start_index
-    sent_all = False
-    while sent_all == False:
-        f = str(index) + '.jpg'
-        im = Image.open(os.path.join(path, f))
-        buf = io.BytesIO()
-        im.save(buf, format='JPEG')
-        await app_client.data_client.file_upload(component_name=cam_name, part_id=part_id, file_extension=".jpg", tags=[_label(event_name, cam_name, event_id, False)], data=buf.getvalue())
-        index = index + 1
-        if index == start_index:
-            sent_all = True 
-        if index > end_index:
-            index = 0
-    shutil.rmtree(path)
-    return
+    # we want X seconds before and after, so subtract X*2 from current time
+    time_minus = current_time - timedelta(seconds=(event_video_capture_padding_secs*2))
 
-def _get_oldest_image_index(requested_dir):
-    mtime = lambda f: os.stat(os.path.join(requested_dir, f)).st_mtime
-    return int(os.path.splitext(list(sorted(os.listdir(requested_dir), key=mtime))[0])[0])
+    # Format the time minus X*2
+    formatted_time_minus = time_minus.strftime('%Y-%m-%d_%H-%M-%S')
 
-def _get_greatest_image_index(requested_dir):
-    index = lambda f: int(os.path.splitext(os.path.basename(os.path.splitext(os.path.join(requested_dir, f))[0]))[0])
-    return int(os.path.splitext(list(sorted(os.listdir(requested_dir), key=index))[-1])[0])
-    
-async def get_triggered_filesystem(camera:str=None, event:str=None, num:int=5):
-    pattern = _create_match_pattern(camera, event, None, True)
-    dsearch = lambda f: (os.path.isdir(f) and re.match(pattern, f))
-    ctime = lambda f: os.stat(os.path.join(ROOT_DIR, f)).st_ctime
-    all_matched = sorted(filter(dsearch, [os.path.join(ROOT_DIR, f) for f in os.listdir(ROOT_DIR)]), key=ctime, reverse=True)
-    matched = []
-    if len(all_matched) < num:
-        num = len(all_matched)
-    for x in range(int(num)):
-        spl = all_matched[x].split('--')
-        matched.append({"event": spl[1].replace('_', ' '), "camera": spl[2], "time": spl[3], "id": all_matched[x].replace(ROOT_DIR + '/', '') })
-    return matched
+    store_result = await vs.do_command( {"command": "save",
+        "from": formatted_time_minus,
+        "to": formatted_time_current,
+        "metadata": camera
+    })
+
+    return store_result.filename
 
 async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_client:str=None):
     pattern = _create_match_pattern(camera, event, None, False)
@@ -88,15 +48,6 @@ async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_cl
             spl = tag.split('--')
             matched.insert(0, {"event": spl[1].replace('_', ' '), "camera": spl[2], "time": spl[3], "id": tag })
     return matched
-
-async def delete_from_filesystem(camera:str=None, event:str=None, id:str=None):
-    pattern = _create_match_pattern(camera, event, id, True)
-
-    dsearch = lambda f: (os.path.isdir(f) and re.match(pattern, f))
-    all_matched = list(filter(dsearch, [os.path.join(ROOT_DIR, f) for f in os.listdir(ROOT_DIR)]))
-    for x in range(len(all_matched)):
-        shutil.rmtree(all_matched[x])
-    return len(all_matched)
 
 # deletes tags from the cloud, not the actual images
 async def delete_from_cloud(camera:str=None, event:str=None, id:str=None, app_client:str=None):
@@ -119,8 +70,6 @@ def _name_clean(cam_name):
 
 def _create_match_pattern(camera:str=None, event:str=None, id:str=None, use_filesystem:bool=False):
     prefix = ''
-    if use_filesystem == True:
-        prefix = ROOT_DIR + '/'
     pattern = prefix + 'SAVCAM--'
     if event != None:
         pattern = pattern + event + "--"
@@ -136,6 +85,11 @@ def _create_match_pattern(camera:str=None, event:str=None, id:str=None, use_file
 
 def _label(event_name, cam_name, event_id, use_filesystem):
     prefix = ''
-    if use_filesystem:
-        prefix = ROOT_DIR + '/'
     return _name_clean(f"{prefix}SAVCAM--{event_name}--{cam_name}--{event_id}")
+
+def _get_video_store(name, resources) -> Camera:
+    actual = resources['_deps'][CameraClient.get_resource_name(resources["camera_config"][name]["video_capture_camera"])]
+    if resources.get(actual) == None:
+        # initialize if it is not already
+        resources[actual] = cast(CameraClient, actual)
+    return resources[actual]

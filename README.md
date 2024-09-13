@@ -98,8 +98,10 @@ The following example configures two events that trigger when an configured Visi
     "pause_alerting_on_event_secs": 300,
     "event_video_capture_padding_secs": 10,
     "detection_hz": 5,
-    "video_capture_cameras": ["vcam1", "vcam2"],
-    "vision_services": ["tracker1", "tracker2"],
+    "camera_config": {
+        "cam1" : { "video_capture_camera": "vcam1", "vision_service": "tracker1" },
+        "cam2" : { "video_capture_camera": "vcam2", "vision_service": "person_detector" },
+    },
     "action_resources": {
         {"resource_type": "component", "type": "generic", "name": "kasa_plug_1"},
         {"resource_type": "component", "type": "generic",  "name": "kasa_plug_2"},
@@ -117,10 +119,7 @@ The following example configures two events that trigger when an configured Visi
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "classification",
-                    "classifier": "tracker1",
-                    "confidence_pct": 0.6,
-                    "class_regex": "new-object-detected",                    
+                    "type": "tracker",
                     "cameras": ["vcam1"]
                 }
             ], 
@@ -139,10 +138,9 @@ The following example configures two events that trigger when an configured Visi
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "classification",
-                    "classifier": "tracker2",
+                    "type": "detection",
                     "confidence_pct": 0.6,
-                    "class_regex": "new-object-detected",                    
+                    "class_regex": "Person",                    
                     "cameras": ["vcam2"]
                 }
             ], 
@@ -224,13 +222,13 @@ Any number of rules can be configured for a given event.
 
 ##### rule type
 
-*enum detection|classification|time*
+*enum detection|classification|tracker|time*
 
-If *type* is **detection**, *detector* (name of vision service detector), *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
-Note that detector and cameras must be configured in *depends_on*.
+If *type* is **detection**, *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
 
-If *type* is **classification**, *classifier* (name of vision service classifier), *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
-Note that classifier and cameras must be configured in *depends_on*.
+If *type* is **classification**, *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+
+If *type* is **tracker**, *cameras* (list of configured cameras) must be defined.
 
 If *type* is **time**, *ranges* must be defined, which is a list of *start_hour* and *end_hour*, which are integers representing the start hour in UTC.
 
