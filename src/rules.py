@@ -82,7 +82,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                     if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
                         LOGGER.debug("Detection triggered")
                         triggered = True
-                        image = all.image
+                        image = viam_to_pil_image(all.image)
         case "classification":
             for camera_name in rule.cameras:
                 classifier = _get_vision_service(camera_name, resources)
@@ -92,7 +92,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                     if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
                         LOGGER.debug("Classification triggered")
                         triggered = True
-                        image = all.image
+                        image = viam_to_pil_image(all.image)
         case "tracker":
             for camera_name in rule.cameras:
                 tracker = _get_vision_service(camera_name, resources)

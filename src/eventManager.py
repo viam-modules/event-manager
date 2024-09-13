@@ -49,12 +49,12 @@ class Event():
                         if item["type"] == "sms":
                             if "sms" in self.notification_settings:
                                 for s in self.notification_settings["sms"]:
-                                    item.phone = s
+                                    item.to = s
                                     self.__dict__[key].append(notifications.NotificationSMS(**item))
                         elif item["type"] == "email":
                             if "email" in self.notification_settings:
                                 for e in self.notification_settings["email"]:
-                                    item.email = e
+                                    item.to = e
                             self.__dict__[key].append(notifications.NotificationEmail(**item))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
@@ -80,7 +80,7 @@ class eventManager(Generic, Reconfigurable):
     
     mode: Modes = "inactive"
     pause_alerting_on_event_secs: int = 300
-    pause_known_person_secs: int = 3600
+    pause_known_person_secs: int = 120
     event_video_capture_padding_secs: int = 10
     detection_hz: int = 5
     app_client : None
@@ -110,6 +110,12 @@ class eventManager(Generic, Reconfigurable):
         action_resources = config.attributes.fields["action_resources"].list_value
         for r in action_resources:
             deps.append(r["name"])
+        sms_module = config.attributes.fields["sms_module"].string_value or ""
+        if sms_module != "":
+            deps.append(sms_module)
+        email_module = config.attributes.fields["email_module"].string_value or ""
+        if email_module != "":
+            deps.append(email_module)
         return deps
 
     # Handles attribute reconfiguration
@@ -145,6 +151,15 @@ class eventManager(Generic, Reconfigurable):
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['camera_config'] = attributes.get("camera_config")
 
+        sms_module = config.attributes.fields["sms_module"].string_value or ""
+        if sms_module != "":
+            actual = dependencies[sms_module]
+            self.robot_resources['sms_module'] = cast(Generic, actual)
+        email_module = config.attributes.fields["email_module"].string_value or ""
+        if email_module != "":
+            actual = dependencies[email_module]
+            self.robot_resources['email_module'] = cast(Generic, actual)
+        
         # restart event loop
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
@@ -182,15 +197,19 @@ class eventManager(Generic, Reconfigurable):
                     # sleep for additional seconds in order to capture more video
                     await asyncio.sleep(self.event_video_capture_padding_secs)
                     rule_index = 0
+                    triggered_image = None
                     for rule in event.rules:
                         if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
+                            if "image" in rule_results:
+                                triggered_image = rule_results["image"]
                             for c in rule.cameras:
                                 stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
                                 # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:
-                        LOGGER.info(n.type)
-                        notifications.notify(event.name, n)
+                        if triggered_image != None:
+                            n["image"] = triggered_image
+                        await notifications.notify(event.name, n, self.robot_resources)
 
                 # try to respect detection_hz as desired speed of detections
                 elapsed = (datetime.datetime.now() - start_time).total_seconds()

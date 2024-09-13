@@ -1,33 +1,24 @@
-import urllib.request
 
-from email.mime.text import MIMEText
-from subprocess import Popen, PIPE
+import urllib
+from PIL import Image
 from viam.logging import getLogger
 
 LOGGER = getLogger(__name__)
 
-# att|verizon|sprint|tmobile|boost|metropcs
-carrier_email_gateways = {
-    "att": "mms.att.net",
-    "verizon": "vzwpix.com",
-    "sprint": "pm.sprint.com",
-    "tmobile": "tmomail.net",
-    "boost": "myboostmobile.com",
-    "metropcs": "mymetropcs.com"
-}
-
 class NotificationSMS():
     type: str="sms"
-    phone: str
+    to: str
     preset: str
+    image: Image
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
 class NotificationEmail():
     type: str="email"
-    address: str
+    to: str
     preset: str
+    image: Image
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -35,34 +26,32 @@ class NotificationEmail():
 class NotificationWebhookGET():
     type: str="webhook_get"
     url: str
+    image: Image
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
-def notify(event_name:str, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET):
+async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):
 
     match notification.type:
         case "email":
-            send_email(event_name, notification, False)
+            if "email_module" in resources:
+                notification_resource = resources['email_module']
+            else:
+                LOGGER.warning("No email module defined, can't send notification email")
+                return
         case "sms":
-            send_email(event_name, notification, True)
+            if "sms_module" in resources:
+                notification_resource = resources['sms_module']
+            else:
+                LOGGER.warning("No SMS module defined, can't send notification SMS")
+                return
         case "webhook_get":
             contents = urllib.request.urlopen(notification.url).read()
+            return
 
-    return
-
-
-def send_email(event_name:str, notification:NotificationEmail|NotificationSMS, is_sms:bool):
-    msg = MIMEText("Event triggered!")
-    if is_sms:
-        to_address = notification.phone + "@" + carrier_email_gateways[notification.carrier]
-    else:
-        to_address = notification.address
-    msg['To'] = to_address
-    msg['Subject'] = "SAVCAM event: " + event_name
-
-    try:
-        p = Popen(["/usr/sbin/sendmail", "-t", "-oi"], stdin=PIPE, universal_newlines=True)
-        p.communicate(msg.as_string())
-    except Exception as e:
-        LOGGER.error(e.output)        
+    res = await notification_resource.do_command({"command": "send", "to": notification.to, "preset": notification.preset})
+    if "error" in res:
+        LOGGER.error(f"Error sending {notification.type}: {res["error"]}")
+    
+    return   
