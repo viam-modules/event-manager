@@ -9,7 +9,9 @@ from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
 from viam.rpc.dial import DialOptions
 
-from viam.components.generic import Generic
+from viam.components.generic import Generic as GenericComponent
+from viam.services.generic import Generic as GenericService
+
 from viam.utils import ValueTypes, struct_to_dict
 
 from viam.logging import getLogger
@@ -41,6 +43,7 @@ class Event():
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')
+
         for key, value in kwargs.items():
             if isinstance(value, list):
                 if key == "notifications":
@@ -49,12 +52,12 @@ class Event():
                         if item["type"] == "sms":
                             if "sms" in notification_settings:
                                 for s in notification_settings["sms"]:
-                                    item.to = s
+                                    item['to'] = s
                                     self.__dict__[key].append(notifications.NotificationSMS(**item))
                         elif item["type"] == "email":
                             if "email" in notification_settings:
                                 for e in notification_settings["email"]:
-                                    item.to = e
+                                    item['to'] = e
                             self.__dict__[key].append(notifications.NotificationEmail(**item))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
@@ -74,7 +77,7 @@ class Event():
             else:
                 self.__dict__[key] = value
 
-class eventManager(Generic, Reconfigurable):
+class eventManager(GenericComponent, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam-soleng", "generic"), "event-manager")
     
@@ -117,12 +120,10 @@ class eventManager(Generic, Reconfigurable):
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
             deps.append(email_module)
-        LOGGER.error(deps)
         return deps
 
     # Handles attribute reconfiguration
     def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
-        LOGGER.error(dependencies)
         # setting this to false ensures that if the event loop is currently running, it will stop
         self.run_loop = False
 
@@ -148,21 +149,24 @@ class eventManager(Generic, Reconfigurable):
         dict_events = attributes.get("events")
         if dict_events is not None:
             for e in dict_events:
-                e['notification_settings'] = config.attributes.fields["notifications"].list_value
+                e['notification_settings'] = attributes.get('notifications')
                 event = Event(**e)
                 self.events.append(event)
+                LOGGER.error(event)
+
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['camera_config'] = attributes.get("camera_config")
 
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
-            actual = dependencies[sms_module]
-            self.robot_resources['sms_module'] = cast(Generic, actual)
+            actual = dependencies[GenericService.get_resource_name(sms_module)]
+            self.robot_resources['sms_module'] = cast(GenericService, actual)
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
-            actual = dependencies[email_module]
-            self.robot_resources['email_module'] = cast(Generic, actual)
+            actual = dependencies[GenericService.get_resource_name(email_module)]
+            self.robot_resources['email_module'] = cast(GenericService, actual)
         
+        LOGGER.error(self.events)
         # restart event loop
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
