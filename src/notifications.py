@@ -38,13 +38,13 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
             if "email_module" in resources:
                 notification_resource = resources['email_module']
             else:
-                LOGGER.warning("No email module defined, can't send notification email")
+                LOGGER.warn("No email module defined, can't send notification email")
                 return
         case "sms":
             if "sms_module" in resources:
                 notification_resource = resources['sms_module']
             else:
-                LOGGER.warning("No SMS module defined, can't send notification SMS")
+                LOGGER.warn("No SMS module defined, can't send notification SMS")
                 return
         case "webhook_get":
             contents = urllib.request.urlopen(notification.url).read()

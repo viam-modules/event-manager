@@ -3,11 +3,10 @@ from typing_extensions import Self
 from typing import Final
 
 from viam.module.types import Reconfigurable
-from viam.proto.app.robot import ComponentConfig
+from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName, Vector3
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
-from viam.app.viam_client import ViamClient
 from viam.rpc.dial import DialOptions
 
 from viam.components.generic import Generic
@@ -41,19 +40,20 @@ class Event():
     rules: list[rules.RuleDetector|rules.RuleClassifier|rules.RuleTime]
 
     def __init__(self, **kwargs):
+        notification_settings = kwargs.get('notification_settings')
         for key, value in kwargs.items():
             if isinstance(value, list):
                 if key == "notifications":
                     self.__dict__["notifications"] = []
                     for item in value:
                         if item["type"] == "sms":
-                            if "sms" in self.notification_settings:
-                                for s in self.notification_settings["sms"]:
+                            if "sms" in notification_settings:
+                                for s in notification_settings["sms"]:
                                     item.to = s
                                     self.__dict__[key].append(notifications.NotificationSMS(**item))
                         elif item["type"] == "email":
-                            if "email" in self.notification_settings:
-                                for e in self.notification_settings["email"]:
+                            if "email" in notification_settings:
+                                for e in notification_settings["email"]:
                                     item.to = e
                             self.__dict__[key].append(notifications.NotificationEmail(**item))
                         elif item["type"] == "webhook_get":
@@ -93,20 +93,21 @@ class eventManager(Generic, Reconfigurable):
 
     # Constructor
     @classmethod
-    def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
+    def new(cls, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         my_class = cls(config.name)
         my_class.reconfigure(config, dependencies)
         return my_class
 
     # Validates JSON Configuration
     @classmethod
-    def validate(cls, config: ComponentConfig):
+    def validate(cls, config: ModuleConfig):
         deps = []
 
-        camera_config = config.attributes.fields["camera_config"].list_value
+        attributes = struct_to_dict(config.attributes)
+        camera_config = attributes.get("camera_config")
         for c in camera_config:
-            deps.append(c["video_capture_camera"])
-            deps.append(c["vision_service"])
+            deps.append(camera_config[c]["video_capture_camera"])
+            deps.append(camera_config[c]["vision_service"])
         action_resources = config.attributes.fields["action_resources"].list_value
         for r in action_resources:
             deps.append(r["name"])
@@ -116,10 +117,12 @@ class eventManager(Generic, Reconfigurable):
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
             deps.append(email_module)
+        LOGGER.error(deps)
         return deps
 
     # Handles attribute reconfiguration
-    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
+    def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
+        LOGGER.error(dependencies)
         # setting this to false ensures that if the event loop is currently running, it will stop
         self.run_loop = False
 
@@ -145,7 +148,7 @@ class eventManager(Generic, Reconfigurable):
         dict_events = attributes.get("events")
         if dict_events is not None:
             for e in dict_events:
-                e.notification_settings = config.attributes.fields["notifications"].list_value
+                e['notification_settings'] = config.attributes.fields["notifications"].list_value
                 event = Event(**e)
                 self.events.append(event)
         self.robot_resources['_deps'] = dependencies
@@ -164,13 +167,6 @@ class eventManager(Generic, Reconfigurable):
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
         return
-
-    async def viam_connect(self) -> ViamClient:
-        dial_options = DialOptions.with_api_key( 
-            api_key=self.api_key,
-            api_key_id=self.api_key_id
-        )
-        return await ViamClient.create_from_dial_options(dial_options)
     
     async def manage_events(self):
         LOGGER.info("Starting event manager")
