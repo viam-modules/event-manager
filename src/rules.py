@@ -94,21 +94,20 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                         LOGGER.debug("Classification triggered")
                         triggered = True
                         image = viam_to_pil_image(all.image)
-                        image.save("/Users/mcvella/git/security-event-manager/test.jpg")
-
         case "tracker":
             for camera_name in rule.cameras:
                 tracker = _get_vision_service(camera_name, resources)
+                LOGGER.error("checking")
                 all = await tracker.capture_all_from_camera(camera_name, return_classifications=True, return_detections=True, return_image=True)
                 c: Classification
                 for c in all.classifications:
+                    LOGGER.error(c)
                     not_approved = False
                     for d in all.detections:
                         # TODO - add logic here to compare to approved list
                         not_approved = True
                         im = viam_to_pil_image(all.image)
                         image = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                        image.save("/Users/mcvella/git/security-event-manager/test.jpg")
                         break
                     if not_approved == True:
                         LOGGER.debug("Tracker triggered")
