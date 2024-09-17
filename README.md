@@ -6,6 +6,25 @@ The model this module makes available is viam-soleng:generic:event-manager
 
 The event manager is normally used in conjunction with a mobile app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
 
+The event manager can be configured to looks for rules being triggered, based on:
+
+* Time of day
+* Computer vision detections
+* Computer vision classifications
+* Computer vision tracker events (new person seen that is not an approved person)
+
+When a rule is triggers, notification actions can occur of type:
+
+* SMS (with media, e.g. MMS)
+* Email
+* GET push notification
+
+Video of any triggered event is captured and stored in Viam data management.
+
+Events can also be escalated via SMS response - for example, an end user that receives an alert SMS can respond to escalate, which can trigger actions like turning on lights and/or alarms.
+
+Triggered events can be queried and cleared with this module.
+
 ## Prerequisites
 
 None
@@ -37,10 +56,10 @@ Return details for triggered events in the following format:
 { "triggered": 
     [
         {
-            "event": "Pets out at night",
-            "camera": "ipcam",
+            "event": "Unexpected person",
+            "camera": "cam1",
             "time": 1703172467,
-            "id": "Pets_out_at_night_ipcam_1703172467"
+            "id": "Unexpected_person_cam1_1703172467"
         }
     ] 
 }

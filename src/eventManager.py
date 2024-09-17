@@ -204,9 +204,9 @@ class eventManager(GenericComponent, Reconfigurable):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
                                 LOGGER.error("GOT IMAGE")
-                            #for c in rule.cameras:
-                                #stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
-                                #LOGGER.error(stored_filename)
+                            for c in rule.cameras:
+                                stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
+                                LOGGER.error(stored_filename)
                                 # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:
