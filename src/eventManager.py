@@ -139,13 +139,13 @@ class eventManager(GenericComponent, Reconfigurable):
             self.pause_known_person_secs = attributes.get('pause_known_person_secs')
 
         if attributes.get('pause_alerting_on_event_secs'):
-            self.pause_known_person_secs = attributes.get('pause_alerting_on_event_secs')
+            self.pause_alerting_on_event_secs = attributes.get('pause_alerting_on_event_secs')
 
         if attributes.get('event_video_capture_padding_secs'):
-            self.pause_known_person_secs = attributes.get('event_video_capture_padding_secs')
+            self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
 
         if attributes.get('detection_hz'):
-            self.pause_known_person_secs = attributes.get('detection_hz')
+            self.detection_hz = attributes.get('detection_hz')
 
         self.events = []
         dict_events = attributes.get("events")
@@ -177,7 +177,7 @@ class eventManager(GenericComponent, Reconfigurable):
         
         event: Event
         for event in self.events:
-            asyncio.ensure_future(self.event_check_loop(event))
+            await asyncio.ensure_future(self.event_check_loop(event))
     
     async def event_check_loop(self, event):
         LOGGER.info("Starting event check loop for " + event.name)
@@ -204,14 +204,14 @@ class eventManager(GenericComponent, Reconfigurable):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
                                 LOGGER.error("GOT IMAGE")
-                            for c in rule.cameras:
-                                stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
-                                LOGGER.error(stored_filename)
+                            #for c in rule.cameras:
+                                #stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
+                                #LOGGER.error(stored_filename)
                                 # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:
-                            n["image"] = triggered_image
+                            n.image = triggered_image
                         await notifications.notify(event.name, n, self.robot_resources)
 
                 # try to respect detection_hz as desired speed of detections
