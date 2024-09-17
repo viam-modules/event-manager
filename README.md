@@ -124,6 +124,7 @@ The following example configures two events that trigger when an configured Visi
     "action_resources": {
         {"resource_type": "component", "type": "generic", "name": "kasa_plug_1"},
         {"resource_type": "component", "type": "generic",  "name": "kasa_plug_2"},
+        {"resource_type": "service", "type": "vision",  "name": "vcam1"},
     },
     "notifications": {
         "email": ["test@somedomain.com"],
@@ -145,9 +146,10 @@ The following example configures two events that trigger when an configured Visi
             "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
             "actions": [
                 {   
+                    "when_secs": 0, 
                     "resource": "kasa_plug_1",
                     "method": "do_command",
-                    "payload": "{'action' : 'toggle_on'}"
+                    "payload": {"action" : "toggle_on"}
                 }
             ]
         },
@@ -166,9 +168,23 @@ The following example configures two events that trigger when an configured Visi
             "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
             "actions": [
                 {   
+                    "sms_match": "1",
+                    "when_secs": 60, 
                     "resource": "kasa_plug_2",
                     "method": "do_command",
                     "payload": {"action" : "toggle_on"}
+                },
+                {   
+                    "sms_match": "(2|3)",
+                    "resource": "kasa_plug_2",
+                    "method": "do_command",
+                    "payload": {"action" : "toggle_off"}
+                },
+                                {   
+                    "sms_match": "2",
+                    "resource": "vcam1",
+                    "method": "do_command",
+                    "payload": {"relabel" : {"<label>": "Known person"}}
                 }
             ]
         }
@@ -226,7 +242,7 @@ Notifications types when an event triggers.
 A list of objects containing:
 
 "resource" - the name of a configured action resource.
-Currently only "generic" components and services are supported.
+Currently only "generic" components and services, as well as vision services are supported.
 
 "method" - the resource method to call
 
@@ -253,6 +269,4 @@ If *type* is **time**, *ranges* must be defined, which is a list of *start_hour*
 
 ## Todo
 
-- Support other types of webhooks
-- Allow using 3rd-party email and SMS services for more reliable delivery
-- Include image in SMS/emails
+* Support other types of webhooks

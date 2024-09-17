@@ -193,19 +193,14 @@ class eventManager(GenericService, Reconfigurable):
                     event.is_triggered = True
                     event.last_triggered = time.time()
                     event_id = str(int(time.time()))
-                    # sleep for additional seconds in order to capture more video
-                    await asyncio.sleep(self.event_video_capture_padding_secs)
                     rule_index = 0
                     triggered_image = None
                     for rule in event.rules:
                         if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
-                                LOGGER.error("GOT IMAGE")
-                            #for c in rule.cameras:
-                            #    stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
-                             #   LOGGER.error(stored_filename)
-                                # TODO - track filename for notification response handling
+                            for c in rule.cameras:
+                                asyncio.ensure_future(triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources))
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:

@@ -17,7 +17,12 @@ LOGGER = getLogger(__name__)
 async def request_capture(camera:str, event_video_capture_padding_secs:int, resources:dict):
     vs = _get_video_store(camera, resources)
 
+    # sleep for additional seconds in order to capture more video
+    await asyncio.sleep(event_video_capture_padding_secs)
+
     current_time = datetime.now()
+    # go back a second to ensure its not the current second
+    current_time = current_time - timedelta(seconds=1)
 
     # Format the current time
     formatted_time_current = current_time.strftime('%Y-%m-%d_%H-%M-%S')
@@ -33,12 +38,9 @@ async def request_capture(camera:str, event_video_capture_padding_secs:int, reso
         "to": formatted_time_current,
         "metadata": camera
     }
-
-    LOGGER.error(store_args)
     
     store_result = await vs.do_command( store_args )
-
-    return store_result.filename
+    return store_result
 
 async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_client:str=None):
     pattern = _create_match_pattern(camera, event, None, False)

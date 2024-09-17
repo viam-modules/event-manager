@@ -97,11 +97,10 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
         case "tracker":
             for camera_name in rule.cameras:
                 tracker = _get_vision_service(camera_name, resources)
-                LOGGER.error("checking")
                 all = await tracker.capture_all_from_camera(camera_name, return_classifications=True, return_detections=True, return_image=True)
                 c: Classification
                 for c in all.classifications:
-                    LOGGER.error(c)
+                    LOGGER.debug(c)
                     not_approved = False
                     for d in all.detections:
                         # TODO - add logic here to compare to approved list
