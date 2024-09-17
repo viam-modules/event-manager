@@ -2,6 +2,8 @@
 import urllib
 from PIL import Image
 from viam.logging import getLogger
+import base64
+from io import BytesIO
 
 LOGGER = getLogger(__name__)
 
@@ -50,7 +52,15 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
             contents = urllib.request.urlopen(notification.url).read()
             return
 
-    res = await notification_resource.do_command({"command": "send", "to": notification.to, "preset": notification.preset})
+    notification_args = {"command": "send", "to": notification.to, "preset": notification.preset}
+    
+    buffered = BytesIO()
+    notification.image.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("ascii")
+    notification_args["media_base64"] = img_str
+    notification_args["media_mime_type"] =  "image/jpeg"
+
+    res = await notification_resource.do_command(notification_args)
     if "error" in res:
         LOGGER.error(f"Error sending {notification.type}: {res["error"]}")
     

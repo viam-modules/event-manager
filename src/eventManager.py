@@ -70,6 +70,8 @@ class Event():
                             self.__dict__[key].append(rules.RuleClassifier(**item))
                         elif item["type"] == "time":
                             self.__dict__[key].append(rules.RuleTime(**item))
+                        elif item["type"] == "tracker":
+                            self.__dict__[key].append(rules.RuleTracker(**item))
                 elif key == "modes":
                     self.__dict__["modes"] = []
                     for item in value:
@@ -152,7 +154,6 @@ class eventManager(GenericComponent, Reconfigurable):
                 e['notification_settings'] = attributes.get('notifications')
                 event = Event(**e)
                 self.events.append(event)
-                LOGGER.error(event)
 
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['camera_config'] = attributes.get("camera_config")
@@ -166,7 +167,6 @@ class eventManager(GenericComponent, Reconfigurable):
             actual = dependencies[GenericService.get_resource_name(email_module)]
             self.robot_resources['email_module'] = cast(GenericService, actual)
         
-        LOGGER.error(self.events)
         # restart event loop
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
@@ -190,7 +190,8 @@ class eventManager(GenericComponent, Reconfigurable):
                 for rule in event.rules:
                     result = await rules.eval_rule(rule, self.robot_resources)
                     rule_results.append(result)
-                if rules.logical_trigger(event.rule_logic_type, rule_results) == True:
+
+                if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
                     event.is_triggered = True
                     event.last_triggered = time.time()
                     event_id = str(int(time.time()))
@@ -200,10 +201,12 @@ class eventManager(GenericComponent, Reconfigurable):
                     triggered_image = None
                     for rule in event.rules:
                         if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
-                            if "image" in rule_results:
-                                triggered_image = rule_results["image"]
+                            if "image" in rule_results[rule_index]:
+                                triggered_image = rule_results[rule_index]["image"]
+                                LOGGER.error("GOT IMAGE")
                             for c in rule.cameras:
                                 stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
+                                LOGGER.error(stored_filename)
                                 # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:

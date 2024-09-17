@@ -28,11 +28,15 @@ async def request_capture(camera:str, event_video_capture_padding_secs:int, reso
     # Format the time minus X*2
     formatted_time_minus = time_minus.strftime('%Y-%m-%d_%H-%M-%S')
 
-    store_result = await vs.do_command( {"command": "save",
+    store_args = { "command": "save",
         "from": formatted_time_minus,
         "to": formatted_time_current,
         "metadata": camera
-    })
+    }
+
+    LOGGER.error(store_args)
+    
+    store_result = await vs.do_command( store_args )
 
     return store_result.filename
 
