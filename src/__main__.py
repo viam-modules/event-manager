@@ -2,7 +2,7 @@ import asyncio
 import sys
 
 from viam.module.module import Module
-from viam.components.generic import Generic
+from viam.services.generic import Generic
 from .eventManager import eventManager
 
 async def main():

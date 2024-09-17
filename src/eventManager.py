@@ -7,9 +7,7 @@ from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName, Vector3
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
-from viam.rpc.dial import DialOptions
 
-from viam.components.generic import Generic as GenericComponent
 from viam.services.generic import Generic as GenericService
 
 from viam.utils import ValueTypes, struct_to_dict
@@ -79,7 +77,7 @@ class Event():
             else:
                 self.__dict__[key] = value
 
-class eventManager(GenericComponent, Reconfigurable):
+class eventManager(GenericService, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam-soleng", "generic"), "event-manager")
     
@@ -204,9 +202,9 @@ class eventManager(GenericComponent, Reconfigurable):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
                                 LOGGER.error("GOT IMAGE")
-                            for c in rule.cameras:
-                                stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
-                                LOGGER.error(stored_filename)
+                            #for c in rule.cameras:
+                            #    stored_filename = await triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources)
+                             #   LOGGER.error(stored_filename)
                                 # TODO - track filename for notification response handling
                         rule_index = rule_index + 1
                     for n in event.notifications:
