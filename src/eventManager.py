@@ -7,10 +7,10 @@ from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName, Vector3
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
-
 from viam.services.generic import Generic as GenericService
-
 from viam.utils import ValueTypes, struct_to_dict
+from viam.app.viam_client import ViamClient
+from viam.rpc.dial import DialOptions
 
 from viam.logging import getLogger
 
@@ -115,6 +115,14 @@ class eventManager(GenericService, Reconfigurable):
     def validate(cls, config: ModuleConfig):
         deps = []
 
+        api_key = config.attributes.fields["app_api_key"].string_value or ''
+        if api_key == '':
+            raise Exception("An app_api_key must be defined")
+
+        api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
+        if api_key_id == '':
+            raise Exception("An app_api_key_id must be defined")
+        
         attributes = struct_to_dict(config.attributes)
         camera_config = attributes.get("camera_config")
         for c in camera_config:
@@ -175,14 +183,27 @@ class eventManager(GenericService, Reconfigurable):
             actual = dependencies[GenericService.get_resource_name(email_module)]
             self.robot_resources['email_module'] = cast(GenericService, actual)
         
+        self.api_key = config.attributes.fields["app_api_key"].string_value or ''
+        self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
+        
         # restart event loop
         self.run_loop = True
         asyncio.ensure_future(self.manage_events())
         return
     
+
+    async def viam_connect(self) -> ViamClient:
+        dial_options = DialOptions.with_api_key( 
+            api_key=self.api_key,
+            api_key_id=self.api_key_id
+        )
+        return await ViamClient.create_from_dial_options(dial_options)
+    
     async def manage_events(self):
         LOGGER.info("Starting event manager")
         
+        self.app_client = await self.viam_connect()
+
         event: Event
         for event in self.events:
             await asyncio.ensure_future(self.event_check_loop(event))
@@ -251,6 +272,6 @@ class eventManager(GenericService, Reconfigurable):
         for name, args in command.items():
             if name == "get_triggered":
                 result["triggered"] = await triggered.get_triggered_cloud(num=args.get("number",5), camera=args.get("camera",None), event=args.get("event",None), app_client=self.app_client)
-            elif name == "clear_triggered":
-                result["total"] = await triggered.delete_from_cloud(camera=args.get("camera",None), event=args.get("event",None), id=args.get("id",None), app_client=self.app_client)
+            elif name == "delete_triggered":
+                result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
         return result  

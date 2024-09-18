@@ -42,10 +42,8 @@ await em.do_command({"get_triggered": {"number": 5}}) # get 5 most recent trigge
 await em.do_command({"get_triggered": {"number": 5, "camera": "ipcam"}}) # get 5 most recent triggered for "ipcam" across all configured events
 await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night"}}) # get 5 most recent triggers for event "Pets out at night"
 
-await em.do_command({"clear_triggered": {}}) # clear all triggered cross all configured events
-await em.do_command({"clear_triggered": {"id": "SAVCAM--my_event--ipcam--1705448784"}}) # clear a specific triggered event
-await em.do_command({"clear_triggered": {"camera": "ipcam"}}) # clear all triggered for "ipcam" across all configured events
-await em.do_command({"clear_triggered": {"event": "Pets out at night"}}) # clear all triggered for event "Pets out at night"
+await em.do_command({"delete_triggered": {"id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX", "location_id": "dsafadad", "organization_id": "adasdsadasw"}}) # delete triggered event based on ID
+
 ```
 
 #### get_triggered
@@ -81,29 +79,32 @@ Name of camera to return triggered for.  If not specified, will return triggered
 
 Name of event to return triggered for.  If not specified, will return triggered across all events.
 
-#### clear_triggered
+#### delete_triggered
 
-Clear triggered events, returning results details in the following format:
+Delete a triggered event by ID
 
 ```json
 {
-  "total": 10
+  "id": "<event_id",
+  "location_id": "<location_id>",
+  "organization_id": "<org_id>"
+
 }
 ```
 
-The following arguments are supported:
-
-*camera* string
-
-Name of camera to delete triggered for.  If not specified, will delete triggered across all cameras.
-
-*event* string
-
-Name of event to delete triggered for.  If not specified, will delete triggered across all events.
+The following arguments are supported and required:
 
 *id* string
 
-ID of event to delete triggered for. If not specified, will delete triggered across all events and cameras (depending on what is passed for *event* and *camera*)
+The event ID.
+
+*location_id* string
+
+Location ID for the event to delete.
+
+*organization_id* string
+
+Organization ID for the event to delete.
 
 ## Viam Service Configuration
 

@@ -5,6 +5,10 @@ import asyncio
 from PIL import Image
 from viam.proto.app.data import Filter
 from viam.components.camera import CameraClient, Camera
+from viam.app.viam_client import ViamClient
+from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
+from viam.proto.app.data import BinaryID
+
 from typing import cast
 from datetime import datetime, timedelta
 
@@ -42,51 +46,43 @@ async def request_capture(camera:str, event_name:str, event_video_capture_paddin
     store_result = await vs.do_command( store_args )
     return store_result
 
-async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_client:str=None):
-    pattern = _create_match_pattern(camera, event, None, False)
+async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_client:ViamClient=None):
     filter_args = {}
-    if camera:
-        filter_args['component_name'] = camera
-    tags = await app_client.data_client.tags_by_filter(Filter(**filter_args))
+    videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=ORDER_DESCENDING)
+    pattern = _create_match_pattern(camera, event, None)
     matched = []
-    for tag in tags:
-        if re.match(pattern, tag):
-            spl = tag.split('--')
-            matched.insert(0, {"event": spl[1].replace('_', ' '), "camera": spl[2], "time": spl[3], "id": tag })
+    for video in videos[0]:
+        LOGGER.error(video.metadata)
+        LOGGER.error(pattern)
+        if re.match(pattern, video.metadata.file_name):
+            spl = video.metadata.file_name.split('--')
+            matched.append({"event": spl[1].replace('_', ' '), "camera": spl[2].replace('.mp4',''), 
+                            "time": video.metadata.time_requested.seconds, "id": video.metadata.id, 
+                            "organization_id": video.metadata.capture_metadata.organization_id, "location_id":  video.metadata.capture_metadata.location_id})
+            if len(matched) == num:
+                break
     return matched
 
-# deletes tags from the cloud, not the actual images
-async def delete_from_cloud(camera:str=None, event:str=None, id:str=None, app_client:str=None):
-    pattern = _create_match_pattern(camera, event, id, False)
-    filter_args = {}
-    if camera:
-        filter_args['component_name'] = camera
-    tags = await app_client.data_client.tags_by_filter(Filter(**filter_args))
-    matched = []
-    for tag in tags:
-        if re.match(pattern, tag):
-            spl = tag.split('--')
-            matched.append(tag)
-    
-    resp = await app_client.data_client.remove_tags_from_binary_data_by_filter(tags=matched, filter=Filter(**filter_args))
-    return
+# deletes video from the cloud
+async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:str=None, app_client:ViamClient=None):    
+    resp = await app_client.data_client.delete_binary_data_by_ids(binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)])
+    return resp
 
 def _name_clean(string):
     return string.replace(' ','_')
 
-def _create_match_pattern(camera:str=None, event:str=None, id:str=None, use_filesystem:bool=False):
-    prefix = ''
-    pattern = prefix + 'SAVCAM--'
+def _create_match_pattern(camera:str=None, event:str=None, id:str=None):
+    pattern = '.*_SAVCAM--'
     if event != None:
-        pattern = pattern + event + "--"
+        pattern = pattern + _name_clean(event) + "--"
     else:
         pattern = pattern + ".*--"
     if camera != None:
-        pattern = pattern + camera + "--.*"
+        pattern = pattern + camera + ".mp4"
     else:
-        pattern = pattern + ".*--.*"
+        pattern = pattern + ".*\\.mp4"
     if id != None:
-        pattern = prefix + id
+        pattern = id
     return pattern
 
 def _label(event_name, cam_name):
