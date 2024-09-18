@@ -17,6 +17,7 @@ from viam.logging import getLogger
 from . import rules
 from . import notifications
 from . import triggered
+from . import actions
 
 import time
 import asyncio
@@ -36,16 +37,21 @@ class Event():
     last_triggered: float = 0
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
-    notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     rules: list[rules.RuleDetector|rules.RuleClassifier|rules.RuleTime]
+    notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
+    actions: list[actions.Action]
+    actions_paused: bool = False
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')
+        
+        # these are optional
+        self.__dict__["actions"] = []
+        self.__dict__["notifications"] = []
 
         for key, value in kwargs.items():
             if isinstance(value, list):
                 if key == "notifications":
-                    self.__dict__["notifications"] = []
                     for item in value:
                         if item["type"] == "sms":
                             if "sms" in notification_settings:
@@ -74,6 +80,9 @@ class Event():
                     self.__dict__["modes"] = []
                     for item in value:
                         self.__dict__[key].append(item)
+                elif key == "actions":
+                    for item in value:
+                        self.__dict__[key].append(actions.Action(**item))
             else:
                 self.__dict__[key] = value
 
@@ -111,9 +120,9 @@ class eventManager(GenericService, Reconfigurable):
         for c in camera_config:
             deps.append(camera_config[c]["video_capture_camera"])
             deps.append(camera_config[c]["vision_service"])
-        action_resources = config.attributes.fields["action_resources"].list_value
-        for r in action_resources:
-            deps.append(r["name"])
+        action_resources = attributes.get("action_resources")
+        for r in action_resources.keys():
+            deps.append(r)
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
             deps.append(sms_module)
@@ -155,6 +164,7 @@ class eventManager(GenericService, Reconfigurable):
 
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['camera_config'] = attributes.get("camera_config")
+        self.robot_resources['action_resources'] = attributes.get("action_resources")
 
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
@@ -177,13 +187,16 @@ class eventManager(GenericService, Reconfigurable):
         for event in self.events:
             await asyncio.ensure_future(self.event_check_loop(event))
     
-    async def event_check_loop(self, event):
+    async def event_check_loop(self, event:Event):
         LOGGER.info("Starting event check loop for " + event.name)
         while self.run_loop:
             if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= self.pause_alerting_on_event_secs)))):
                 start_time = datetime.datetime.now()
-                # reset trigger before evaluating
+                # reset trigger and actions before evaluating
                 event.is_triggered = False
+                actions.flip_action_status(event, False)
+                event.actions_paused = False
+
                 rule_results = []
                 for rule in event.rules:
                     result = await rules.eval_rule(rule, self.robot_resources)
@@ -192,7 +205,6 @@ class eventManager(GenericService, Reconfigurable):
                 if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
                     event.is_triggered = True
                     event.last_triggered = time.time()
-                    event_id = str(int(time.time()))
                     rule_index = 0
                     triggered_image = None
                     for rule in event.rules:
@@ -200,7 +212,7 @@ class eventManager(GenericService, Reconfigurable):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
                             for c in rule.cameras:
-                                asyncio.ensure_future(triggered.request_capture(c, self.event_video_capture_padding_secs, self.robot_resources))
+                                asyncio.ensure_future(triggered.request_capture(c, event.name, self.event_video_capture_padding_secs, self.robot_resources))
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:
@@ -212,6 +224,18 @@ class eventManager(GenericService, Reconfigurable):
                 to_wait = (1 / self.detection_hz) - elapsed
                 if to_wait > 0:
                     await asyncio.sleep(to_wait)
+            elif (event.is_triggered == True) and (event.actions_paused == False):
+                LOGGER.error("checking for ACTIONS")
+                # see if any actions need to be performed
+                sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                for action in event.actions:
+                    should_action = await actions.eval_action(event, action, sms_message)
+                    if should_action:
+                        if sms_message != "":
+                            # once we get a valid SMS message, no other actions should be taken
+                            event.actions_paused = True
+                        await actions.do_action(event, action, self.robot_resources)
+                await asyncio.sleep(.5)
             else:
                 # sleep for a bit longer if we know we are not currently checking for this event
                 await asyncio.sleep(.5)

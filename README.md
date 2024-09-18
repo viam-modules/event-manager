@@ -122,9 +122,9 @@ The following example configures two events that trigger when an configured Visi
         "cam2" : { "video_capture_camera": "vcam2", "vision_service": "person_detector" },
     },
     "action_resources": {
-        {"resource_type": "component", "type": "generic", "name": "kasa_plug_1"},
-        {"resource_type": "component", "type": "generic",  "name": "kasa_plug_2"},
-        {"resource_type": "service", "type": "vision",  "name": "vcam1"},
+        "kasa_plug_1": {"type": "component", "subtype": "generic"},
+        "kasa_plug_2": {"type": "component", "subtype": "generic"},
+        "vcam1": {"type": "service", "subtype": "vision"}
     },
     "notifications": {
         "email": ["test@somedomain.com"],
@@ -149,7 +149,7 @@ The following example configures two events that trigger when an configured Visi
                     "when_secs": 0, 
                     "resource": "kasa_plug_1",
                     "method": "do_command",
-                    "payload": {"action" : "toggle_on"}
+                    "payload": "{'action' : 'toggle_on'}"
                 }
             ]
         },
@@ -172,19 +172,21 @@ The following example configures two events that trigger when an configured Visi
                     "when_secs": 60, 
                     "resource": "kasa_plug_2",
                     "method": "do_command",
-                    "payload": {"action" : "toggle_on"}
+                    "payload": "{'action' : 'toggle_on'}"
                 },
                 {   
                     "sms_match": "(2|3)",
+                    "when_secs": -1, 
                     "resource": "kasa_plug_2",
                     "method": "do_command",
-                    "payload": {"action" : "toggle_off"}
+                    "payload": "{'action' : 'toggle_off'}"
                 },
-                                {   
+                {   
                     "sms_match": "2",
+                    "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
-                    "payload": {"relabel" : {"<label>": "Known person"}}
+                    "payload": "{'relabel' : {'<label>': 'Known person'}}"
                 }
             ]
         }

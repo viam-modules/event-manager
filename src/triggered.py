@@ -14,7 +14,7 @@ from viam.logging import getLogger
 
 LOGGER = getLogger(__name__)
 
-async def request_capture(camera:str, event_video_capture_padding_secs:int, resources:dict):
+async def request_capture(camera:str, event_name:str, event_video_capture_padding_secs:int, resources:dict):
     vs = _get_video_store(camera, resources)
 
     # sleep for additional seconds in order to capture more video
@@ -36,7 +36,7 @@ async def request_capture(camera:str, event_video_capture_padding_secs:int, reso
     store_args = { "command": "save",
         "from": formatted_time_minus,
         "to": formatted_time_current,
-        "metadata": camera
+        "metadata": _label(event_name, camera)
     }
     
     store_result = await vs.do_command( store_args )
@@ -71,8 +71,8 @@ async def delete_from_cloud(camera:str=None, event:str=None, id:str=None, app_cl
     resp = await app_client.data_client.remove_tags_from_binary_data_by_filter(tags=matched, filter=Filter(**filter_args))
     return
 
-def _name_clean(cam_name):
-    return cam_name.replace(' ','_')
+def _name_clean(string):
+    return string.replace(' ','_')
 
 def _create_match_pattern(camera:str=None, event:str=None, id:str=None, use_filesystem:bool=False):
     prefix = ''
@@ -89,9 +89,8 @@ def _create_match_pattern(camera:str=None, event:str=None, id:str=None, use_file
         pattern = prefix + id
     return pattern
 
-def _label(event_name, cam_name, event_id, use_filesystem):
-    prefix = ''
-    return _name_clean(f"{prefix}SAVCAM--{event_name}--{cam_name}--{event_id}")
+def _label(event_name, cam_name):
+    return _name_clean(f"SAVCAM--{event_name}--{cam_name}")
 
 def _get_video_store(name, resources) -> Camera:
     actual = resources['_deps'][CameraClient.get_resource_name(resources["camera_config"][name]["video_capture_camera"])]

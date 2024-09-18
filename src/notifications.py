@@ -4,6 +4,7 @@ from PIL import Image
 from viam.logging import getLogger
 import base64
 from io import BytesIO
+from datetime import datetime, timezone
 
 LOGGER = getLogger(__name__)
 
@@ -40,13 +41,13 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
             if "email_module" in resources:
                 notification_resource = resources['email_module']
             else:
-                LOGGER.warn("No email module defined, can't send notification email")
+                LOGGER.warning("No email module defined, can't send notification email")
                 return
         case "sms":
             if "sms_module" in resources:
                 notification_resource = resources['sms_module']
             else:
-                LOGGER.warn("No SMS module defined, can't send notification SMS")
+                LOGGER.warning("No SMS module defined, can't send notification SMS")
                 return
         case "webhook_get":
             contents = urllib.request.urlopen(notification.url).read()
@@ -68,3 +69,15 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
         LOGGER.error("Unexpected error, notification not sent")
         
     return   
+
+async def check_sms_response(notifications:list[NotificationEmail|NotificationSMS|NotificationWebhookGET], since, resources):
+    formatted_time = datetime.fromtimestamp(since, timezone.utc).strftime('%d/%m/%Y %H:%M:%S')
+    for n in notifications:
+        if n.type == "sms":
+            sms_args = { "command": "get", "number": 1, "from": n.to, "time_start": formatted_time }
+            LOGGER.error(sms_args)
+            res = await resources['sms_module'].do_command(sms_args)
+            if len(res["messages"]):
+                LOGGER.error(res)
+                return res["messages"][0]["body"]
+    return ""
