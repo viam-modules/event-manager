@@ -1,5 +1,6 @@
 import re
 import json
+import time
 from typing import cast
 
 from viam.logging import getLogger
@@ -26,9 +27,14 @@ def flip_action_status(event, direction:bool):
         action.taken = direction
 
 async def eval_action(event, action:Action, sms_message):
+    if action.taken:
+        return False
     if (sms_message != "") and (action.sms_match != ""):
         if re.search(action.sms_match, sms_message):
             LOGGER.error(f"matched {action.sms_match}")
+            return True
+    if action.when_secs != -1:
+        if (time.time() - event.last_triggered) >= action.when_secs:
             return True
     return False
 
