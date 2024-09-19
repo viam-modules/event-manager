@@ -1,33 +1,36 @@
 # event-manager modular service
 
-*event-manager* is a Viam modular component that provides eventing capabilities using the generic component API.
+*event-manager* is a Viam modular service that provides eventing capabilities using the generic component API.
 
 The model this module makes available is viam-soleng:generic:event-manager
 
-The event manager is normally used in conjunction with a mobile app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
+The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
 
-The event manager can be configured to looks for rules being triggered, based on:
+The event manager can be configured with rules to evaluate, based on:
 
 * Time of day
 * Computer vision detections
 * Computer vision classifications
 * Computer vision tracker events (new person seen that is not an approved person)
 
-When a rule is triggers, notification actions can occur of type:
+When a rule is triggers, configured notification actions can occur of type:
 
 * SMS (with media, e.g. MMS)
 * Email
 * GET push notification
 
-Video of any triggered event is captured and stored in Viam data management.
+Video of any triggered event is captured and stored in Viam data management via a video storage camera (configured as a dependency).
 
-Events can also be escalated via SMS response - for example, an end user that receives an alert SMS can respond to escalate, which can trigger actions like turning on lights and/or alarms.
+Actions can also be configured that occur either:
 
-Triggered events can be queried and cleared with this module.
+* After X seconds after an event is triggered
+* Based on an SMS response
 
-## Prerequisites
+Configured actions are methods and payloads on other configured Viam resources.
+Currently only generic components/services and vision services are supported.
+Example action: An end user that receives an alert SMS can respond responds with '1', which activates a Kasa switch via a component do_command() call.
 
-None
+Triggered events can be queried and deleted with this module.
 
 ## API
 
@@ -57,13 +60,15 @@ Return details for triggered events in the following format:
             "event": "Unexpected person",
             "camera": "cam1",
             "time": 1703172467,
-            "id": "Unexpected_person_cam1_1703172467"
+            "id": "edc519e5-85fe-42ab-af3c-506fcc827948",
+            "organization_id": "72ff9713-adc7-4b15-a95b-2174468bde19",
+            "location_id": "x7ahxaMJEfF"
         }
     ] 
 }
 ```
 
-Note that "id" can be passed to a properly configured Viam [image-dir-cam](https://app.viam.com/module/viam-labs/image-dir-cam) as the "dir" *extra* param in order to view the captured camera stream.
+Note that ID is the ID of the corresponding video in Viam's Data Management.
 
 The following arguments are supported:
 
@@ -77,7 +82,7 @@ Name of camera to return triggered for.  If not specified, will return triggered
 
 *event* string
 
-Name of event to return triggered for.  If not specified, will return triggered across all events.
+Name of configured event name to return triggered for.  If not specified, will return triggered across all events.
 
 #### delete_triggered
 
@@ -106,10 +111,14 @@ Location ID for the event to delete.
 
 Organization ID for the event to delete.
 
-## Viam Service Configuration
+## Viam event-manager Service Configuration
 
 The service configuration uses JSON to describe rules around events.
-The following example configures two events that trigger when an configured Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug if escalated.
+The following example configures two events:
+
+* The first triggers when the system is "active" and a configured detector Vision service sees a "Person", sending an SMS and email, and turning on a kasa plug immediately.
+* The second triggers when the system is "active" and a configured tracker Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug in 30 seconds or if an SMS response '1' is received.
+If an SMS reponse of 2 is received, the kasa plug is turned off and the person detected is labeled.  If an SMS response of '3' is received, the kasa switch is turned off.
 
 ```json
 {
@@ -118,6 +127,10 @@ The following example configures two events that trigger when an configured Visi
     "pause_alerting_on_event_secs": 300,
     "event_video_capture_padding_secs": 10,
     "detection_hz": 5,
+    "app_api_key": "daifdkaddkdfhshfeasw",
+    "app_api_key_id": "weygwegqeyygadydagfd",
+    "email_module": "shared-alerting:email",
+    "sms_module": "shared-alerting:sms",
     "camera_config": {
         "cam1" : { "video_capture_camera": "vcam1", "vision_service": "tracker1" },
         "cam2" : { "video_capture_camera": "vcam2", "vision_service": "person_detector" },
@@ -187,7 +200,7 @@ The following example configures two events that trigger when an configured Visi
                     "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
-                    "payload": "{'relabel' : {'<label>': 'Known person'}}"
+                    "payload": "{'relabel' : {'<<label>>': 'Known person'}}"
                 }
             ]
         }
@@ -201,14 +214,95 @@ The following example configures two events that trigger when an configured Visi
 
 Event manager mode, which is used in event evaluation based on configured event [modes](#modes)
 
+### event_video_capture_padding_secs
+
+*integer (default 10)*
+
+For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
+
+### notifications
+
+*object*
+
+An object containing two lists:
+
+*email* - A list of email addresses to send to for configured email notifications
+
+*sms* - A list of SMS numbers to send to for configured SMS notifications
+
+### camera_config
+
+*object (required)*
+
+An object containing configured physical camera component names as keys, and object values with:
+
+*video_capture_camera* - The name of the associated configured video capture camera for the physical camera.
+
+*vision_service*  - The name of the associated configured vision service to use.
+
+### action_resources
+
+*object*
+
+If actions are configured, these are the associated resources to import and dependencies to use with the associated actions.
+The key is the name of the configured resource, with object containing:
+
+*type* - the resource type: component or service.
+*subtype* - the resource subtype - currently only 'generic' and 'vision' are supported.
+
+### detection_hz
+
+*integer (default 5)*
+
+How often rules are evaluated, best effort.
+
+### app_api_key
+
+*string (required)*
+
+Used to interface with Viam data management for triggered event management
+
+### app_api_key_id
+
+*string (required)*
+
+Used to interface with Viam data management for triggered event management
+
+### pause_known_person_secs
+
+*integer (default 120)*
+
+How long to pause after a known person is seen before rules for the event are again evaluated.
+Only applies to events that are triggered by a "tracker" rule.
+
+### pause_alerting_on_event_secs
+
+*integer (default 300)*
+
+How long to pause after triggered event before rules for the event are again evaluated.
+
+### email_module
+
+*string (optional)*
+
+The name of an email sending service configured as part of this machine that uses the API format of [this module](https://app.viam.com/module/mcvella/sendgrid-email)
+If email notifications are configured, this is required.
+
+### sms_module
+
+*string (optional)*
+
+The name of an SMS sending service configured as part of this machine that uses the API format of [this module](https://app.viam.com/module/mcvella/twilio-sms)
+If SMS notifications are configured, this is required.
+
 ### events
 
 *list*
 
-Any number of events can be configured, and will be repeatedly evaluated.
-If an event evaluates to true, it will be tracked, and any configured notifications will occur.
+Any number of events can be configured, and will be repeatedly evaluated as long as *pause_alerting_on_event_secs* is not currently being enforced.
+If an event evaluates to true, a video save request occurs and any configured notifications will occur.
 
-### name
+#### name
 
 *string (required)*
 
@@ -250,6 +344,13 @@ Currently only "generic" components and services, as well as vision services are
 "method" - the resource method to call
 
 "payload" - the JSON payload to pass to the method
+
+"sms_match" -  if a phone number that was notified when this event was triggered sends an SMS response and the response matches "sms_match" (regex), then this and any other matching actions will be taken.
+Any other actions that could later be taken will be ignored until the event triggers again.
+
+"when_secs" - How many seconds after the event triggers should the action occur.
+If not specified or set to 0, will happen immediately.
+If set to -1, will not happen unless sms_match causes it to occur.
 
 #### rules
 

@@ -66,6 +66,7 @@ class CameraCache():
 async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resources):
     triggered = False
     image = None
+    label = None
     match rule.type:
         case "time":
             curr_time = datetime.now()
@@ -83,7 +84,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                         LOGGER.debug("Detection triggered")
                         triggered = True
                         image = viam_to_pil_image(all.image)
-                        image.save("/Users/mcvella/git/security-event-manager/test.jpg")
+                        label = d.class_name
         case "classification":
             for camera_name in rule.cameras:
                 classifier = _get_vision_service(camera_name, resources)
@@ -94,6 +95,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                         LOGGER.debug("Classification triggered")
                         triggered = True
                         image = viam_to_pil_image(all.image)
+                        label = c.class_name
         case "tracker":
             for camera_name in rule.cameras:
                 tracker = _get_vision_service(camera_name, resources)
@@ -107,11 +109,12 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                         not_approved = True
                         im = viam_to_pil_image(all.image)
                         image = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
+                        label = d.class_name
                         break
                     if not_approved == True:
                         LOGGER.debug("Tracker triggered")
                         triggered = True
-    return { "triggered" : triggered, "image": image }
+    return { "triggered" : triggered, "image": image, "label": label }
 
 def logical_trigger(logic_type, list):
     logic_function = getattr(logic, logic_type)

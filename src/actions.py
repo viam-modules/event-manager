@@ -52,6 +52,7 @@ async def do_action(event, action:Action, resources):
 
     method = getattr(resource, action.method)
 
-    # TODO: allow for string replacement in payload for things like label
+    # At some point we might want other things to be template variables, for now just label
+    action.payload = action.payload.replace('<<label>>', event.label)
     await method(json.loads(action.payload.replace("'", "\"")))
     action.taken = True

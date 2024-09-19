@@ -41,6 +41,7 @@ class Event():
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     actions: list[actions.Action]
     actions_paused: bool = False
+    triggered_label: str = ""
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')
@@ -213,10 +214,12 @@ class eventManager(GenericService, Reconfigurable):
         while self.run_loop:
             if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= self.pause_alerting_on_event_secs)))):
                 start_time = datetime.datetime.now()
-                # reset trigger and actions before evaluating
+                
+                # reset event ad actions before evaluating
                 event.is_triggered = False
-                actions.flip_action_status(event, False)
                 event.actions_paused = False
+                event.triggered_label = ""
+                actions.flip_action_status(event, False)
 
                 rule_results = []
                 for rule in event.rules:
@@ -232,6 +235,8 @@ class eventManager(GenericService, Reconfigurable):
                         if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
+                            if "image" in rule_results[rule_index]:
+                                event.triggered_label = rule_results[rule_index]["label"]
                             for c in rule.cameras:
                                 asyncio.ensure_future(triggered.request_capture(c, event.name, self.event_video_capture_padding_secs, self.robot_resources))
                         rule_index = rule_index + 1
