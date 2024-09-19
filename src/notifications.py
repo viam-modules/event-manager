@@ -75,9 +75,9 @@ async def check_sms_response(notifications:list[NotificationEmail|NotificationSM
     for n in notifications:
         if n.type == "sms":
             sms_args = { "command": "get", "number": 1, "from": n.to, "time_start": formatted_time }
-            LOGGER.error(sms_args)
+            LOGGER.debug(sms_args)
             res = await resources['sms_module'].do_command(sms_args)
             if len(res["messages"]):
-                LOGGER.error(res)
+                LOGGER.debug(res)
                 return res["messages"][0]["body"]
     return ""

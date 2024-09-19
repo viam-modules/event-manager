@@ -251,7 +251,7 @@ class eventManager(GenericService, Reconfigurable):
                 if to_wait > 0:
                     await asyncio.sleep(to_wait)
             elif (event.is_triggered == True) and (event.actions_paused == False):
-                LOGGER.error("checking for ACTIONS")
+                LOGGER.debug("checking for ACTIONS")
                 # see if any actions need to be performed
                 sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
                 for action in event.actions:

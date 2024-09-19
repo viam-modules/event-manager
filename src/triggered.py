@@ -52,8 +52,8 @@ async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_cl
     pattern = _create_match_pattern(camera, event, None)
     matched = []
     for video in videos[0]:
-        LOGGER.error(video.metadata)
-        LOGGER.error(pattern)
+        LOGGER.debug(video.metadata)
+        LOGGER.debug(pattern)
         if re.match(pattern, video.metadata.file_name):
             spl = video.metadata.file_name.split('--')
             matched.append({"event": spl[1].replace('_', ' '), "camera": spl[2].replace('.mp4',''), 

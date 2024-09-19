@@ -31,7 +31,7 @@ async def eval_action(event, action:Action, sms_message):
         return False
     if (sms_message != "") and (action.sms_match != ""):
         if re.search(action.sms_match, sms_message):
-            LOGGER.error(f"matched {action.sms_match}")
+            LOGGER.debug(f"matched {action.sms_match}")
             return True
     if action.when_secs != -1:
         if (time.time() - event.last_triggered) >= action.when_secs:
