@@ -46,10 +46,10 @@ async def request_capture(camera:str, event_name:str, event_video_capture_paddin
     store_result = await vs.do_command( store_args )
     return store_result
 
-async def get_triggered_cloud(camera:str=None, event:str=None, num:int=5, app_client:ViamClient=None):
+async def get_triggered_cloud(camera:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
     filter_args = {}
     videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=ORDER_DESCENDING)
-    pattern = _create_match_pattern(camera, event, None)
+    pattern = _create_match_pattern(camera, event_name, None)
     matched = []
     for video in videos[0]:
         LOGGER.debug(video.metadata)
@@ -71,10 +71,10 @@ async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:s
 def _name_clean(string):
     return string.replace(' ','_')
 
-def _create_match_pattern(camera:str=None, event:str=None, id:str=None):
+def _create_match_pattern(camera:str=None, event_name:str=None, id:str=None):
     pattern = '.*_SAVCAM--'
-    if event != None:
-        pattern = pattern + _name_clean(event) + "--"
+    if event_name != None:
+        pattern = pattern + _name_clean(event_name) + "--"
     else:
         pattern = pattern + ".*--"
     if camera != None:

@@ -8,25 +8,17 @@ from viam.components.generic import Generic as GenericComponent
 from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
 
+from .events import Event
+from .actionClass import Action
+
 LOGGER = getLogger(__name__)
 
-class Action():
-    resource: str
-    method: str
-    payload: str
-    when_secs: int
-    sms_match: str = ""
-    taken: bool = False
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            self.__dict__[key] = value
-
-def flip_action_status(event, direction:bool):
+def flip_action_status(event:Event, direction:bool):
     action:Action
     for action in event.actions:
         action.taken = direction
 
-async def eval_action(event, action:Action, sms_message):
+async def eval_action(event:Event, action:Action, sms_message):
     if action.taken:
         return False
     if (sms_message != "") and (action.sms_match != ""):
@@ -38,7 +30,7 @@ async def eval_action(event, action:Action, sms_message):
             return True
     return False
 
-async def do_action(event, action:Action, resources):
+async def do_action(event:Event, action:Action, resources):
     # certainly this could be improved
     if (resources["action_resources"][action.resource]["type"] == "component") and (resources["action_resources"][action.resource]["subtype"] == "generic"):
         resource_dep = resources['_deps'][GenericComponent.get_resource_name(action.resource)]
@@ -53,6 +45,6 @@ async def do_action(event, action:Action, resources):
     method = getattr(resource, action.method)
 
     # At some point we might want other things to be template variables, for now just label
-    action.payload = action.payload.replace('<<label>>', event.label)
+    action.payload = action.payload.replace('<<label>>', event.triggered_label)
     await method(json.loads(action.payload.replace("'", "\"")))
     action.taken = True
