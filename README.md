@@ -338,12 +338,15 @@ Notifications types when an event triggers.
 
 A list of objects containing:
 
-"resource" - the name of a configured action resource.
+"resource" - The name of a configured action resource.
 Currently only "generic" components and services, as well as vision services are supported.
 
-"method" - the resource method to call
+"method" - The resource method to call
 
-"payload" - the JSON payload to pass to the method
+"payload" - The JSON payload to pass to the method.
+Pass as a string that will be decoded to JSON.
+Single quotes will get translated to double quotes so as to validate as proper JSON.
+If your JSON string includes ```<<label>>``` it will be replaced with the the label detected when the event was triggered.
 
 "sms_match" -  if a phone number that was notified when this event was triggered sends an SMS response and the response matches "sms_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.
