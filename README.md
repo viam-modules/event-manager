@@ -32,6 +32,8 @@ Example action: An end user that receives an alert SMS can respond responds with
 
 Triggered events can be queried and deleted with this module.
 
+![](./event-manager-state.png)
+
 ## API
 
 The event-manager resource implements the [rdk generic API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/generic/v1/generic.proto).
