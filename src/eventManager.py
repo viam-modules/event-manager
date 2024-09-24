@@ -33,7 +33,7 @@ class Modes(Enum):
 
 class eventManager(GenericService, Reconfigurable):
     
-    MODEL: ClassVar[Model] = Model(ModelFamily("viam-soleng", "generic"), "event-manager")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "eventing")
     
     mode: Modes = "inactive"
     pause_alerting_on_event_secs: int = 300

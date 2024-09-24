@@ -2,7 +2,7 @@
 
 *event-manager* is a Viam modular service that provides eventing capabilities using the generic component API.
 
-The model this module makes available is viam-soleng:generic:event-manager
+The model this module makes available is viam:event-manager:eventing
 
 The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
 
