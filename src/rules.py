@@ -99,21 +99,28 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
         case "tracker":
             for camera_name in rule.cameras:
                 tracker = _get_vision_service(camera_name, resources)
-                all = await tracker.capture_all_from_camera(camera_name, return_classifications=True, return_detections=True, return_image=True)
-                c: Classification
-                for c in all.classifications:
-                    LOGGER.debug(c)
-                    not_approved = False
-                    for d in all.detections:
-                        # TODO - add logic here to compare to approved list
-                        not_approved = True
+                all = await tracker.capture_all_from_camera(camera_name, return_classifications=False, return_detections=True, return_image=True)
+                approved = []
+                # we need to get approved list to see if there
+                # are detections of any unknown people without known people
+                known = await tracker.do_command({"list": True})
+                LOGGER.error(known)
+                for d in all.detections:
+                    authorized = False
+                    for k in known["list"]:
+                        LOGGER.debug(k)
+                        LOGGER.debug(d)
+                        if (k["label"] == d.class_name) and (k["authorized"] == True):
+                            authorized = True
+                    approved.append(authorized)
+                    if not authorized:
                         im = viam_to_pil_image(all.image)
                         image = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
                         label = d.class_name
-                        break
-                    if not_approved == True:
-                        LOGGER.debug("Tracker triggered")
-                        triggered = True
+                LOGGER.debug(approved)
+                if logic.NOR(approved):
+                    LOGGER.error("Tracker triggered")
+                    triggered = True
     return { "triggered" : triggered, "image": image, "label": label }
 
 def logical_trigger(logic_type, list):
