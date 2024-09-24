@@ -21,9 +21,6 @@ LOGGER = getLogger(__name__)
 async def request_capture(camera:str, event_name:str, event_video_capture_padding_secs:int, resources:dict):
     vs = _get_video_store(camera, resources)
 
-    # sleep for additional seconds in order to capture more video
-    await asyncio.sleep(event_video_capture_padding_secs)
-
     current_time = datetime.now()
     # go back a second to ensure its not the current second
     current_time = current_time - timedelta(seconds=1)
@@ -40,7 +37,8 @@ async def request_capture(camera:str, event_name:str, event_video_capture_paddin
     store_args = { "command": "save",
         "from": formatted_time_minus,
         "to": formatted_time_current,
-        "metadata": _label(event_name, camera)
+        "metadata": _label(event_name, camera),
+        "async": True
     }
     
     store_result = await vs.do_command( store_args )

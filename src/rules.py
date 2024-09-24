@@ -14,7 +14,6 @@ from viam.logging import getLogger
 from viam.media.utils.pil import viam_to_pil_image
 
 LOGGER = getLogger(__name__)
-CAM_BUFFER_SIZE = 75
 
 class TimeRange():
     start_hour: int
@@ -104,12 +103,11 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                 # we need to get approved list to see if there
                 # are detections of any unknown people without known people
                 known = await tracker.do_command({"list": True})
-                LOGGER.error(known)
                 for d in all.detections:
                     authorized = False
                     for k in known["list"]:
-                        LOGGER.debug(k)
-                        LOGGER.debug(d)
+                        LOGGER.error(k)
+                        LOGGER.error(d)
                         if (k["label"] == d.class_name) and (k["authorized"] == True):
                             authorized = True
                     approved.append(authorized)
