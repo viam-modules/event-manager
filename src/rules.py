@@ -106,8 +106,6 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                 for d in all.detections:
                     authorized = False
                     for k in known["list"]:
-                        LOGGER.error(k)
-                        LOGGER.error(d)
                         if (k["label"] == d.class_name) and (k["authorized"] == True):
                             authorized = True
                     approved.append(authorized)
@@ -117,7 +115,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                         label = d.class_name
                 LOGGER.debug(approved)
                 if logic.NOR(approved):
-                    LOGGER.error("Tracker triggered")
+                    LOGGER.info("Tracker triggered")
                     triggered = True
     return { "triggered" : triggered, "image": image, "label": label }
 
