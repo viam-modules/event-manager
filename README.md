@@ -149,7 +149,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
             "rules": [
                 {
                     "type": "tracker",
-                    "camera_config": { "camera": "cam1" "tracker": "tracker1" },
+                    "camera": "cam1",
                     "tracker": "tracker1" 
                 }
             ], 
