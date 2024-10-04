@@ -141,16 +141,18 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
     },
     "events": [
         {
-            "name": "new person camera 1",
+            "name": "a person camera 1",
             "modes": ["active"],
             "pause_alerting_on_event_secs": 300,
             "detection_hz": 5,
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "tracker",
+                    "type": "detection",
+                    "confidence_pct": 0.6,
+                    "class_regex": "Person",                    
                     "camera": "cam1",
-                    "tracker": "tracker1" 
+                    "detector": "person_detector"
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["123-456-7890"], "preset": "alert"}, {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}],
@@ -164,18 +166,16 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
             ]
         },
         {
-            "name": "a person camera 2",
+            "name": "a new person camera 2",
             "modes": ["active"],
             "detection_hz": 2,
             "pause_alerting_on_event_secs": 120,
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "detection",
-                    "confidence_pct": 0.6,
-                    "class_regex": "Person",                    
+                    "type": "tracker",
                     "camera": "cam2",
-                    "detector": "person_detector"
+                    "tracker": "tracker1" 
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "preset": "alert"}],
