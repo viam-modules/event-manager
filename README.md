@@ -125,41 +125,35 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
 ```json
 {
     "mode": "active",
-    "pause_known_person_secs": 3600,
-    "pause_alerting_on_event_secs": 300,
-    "event_video_capture_padding_secs": 10,
-    "detection_hz": 5,
     "app_api_key": "daifdkaddkdfhshfeasw",
     "app_api_key_id": "weygwegqeyygadydagfd",
     "email_module": "shared-alerting:email",
     "sms_module": "shared-alerting:sms",
-    "camera_config": {
-        "cam1" : { "video_capture_camera": "vcam1", "vision_service": "tracker1" },
-        "cam2" : { "video_capture_camera": "vcam2", "vision_service": "person_detector" },
-    },
-    "action_resources": {
+    "resources": {
         "kasa_plug_1": {"type": "component", "subtype": "generic"},
         "kasa_plug_2": {"type": "component", "subtype": "generic"},
-        "vcam1": {"type": "service", "subtype": "vision"}
+        "cam1": {"type": "component", "subtype": "camera"},
+        "cam2": {"type": "component", "subtype": "camera"},
+        "vcam1": {"type": "component", "subtype": "camera"},
+        "vcam2": {"type": "component", "subtype": "camera"},
+        "tracker1": {"type": "service", "subtype": "vision"},
+        "tracker1": {"type": "service", "subtype": "vision"}
     },
-    "notifications": {
-        "email": ["test@somedomain.com"],
-        "sms": ["123-456-7890"]
-    },
-    "sms_module": "sms",
-    "email_module": "email",
     "events": [
         {
             "name": "new person camera 1",
             "modes": ["active"],
+            "pause_alerting_on_event_secs": 300,
+            "detection_hz": 5,
             "rule_logic_type": "AND",
             "rules": [
                 {
                     "type": "tracker",
-                    "cameras": ["vcam1"]
+                    "cameras": ["cam1"],
+                    "tracker": "tracker1" 
                 }
             ], 
-            "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
+            "notifications": [{"type": "sms", "to": ["123-456-7890"], "preset": "alert"}, {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}],
             "actions": [
                 {   
                     "when_secs": 0, 
@@ -172,17 +166,30 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
         {
             "name": "new person camera 2",
             "modes": ["active"],
+            "detection_hz": 2,
+            "pause_alerting_on_event_secs": 120,
             "rule_logic_type": "AND",
             "rules": [
                 {
                     "type": "detection",
                     "confidence_pct": 0.6,
                     "class_regex": "Person",                    
-                    "cameras": ["vcam2"]
+                    "cameras": ["cam2"],
+                    "detector": "person_detector"
                 }
             ], 
-            "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
+            "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "preset": "alert"}],
             "actions": [
+                {   
+                    "when_secs": 0, 
+                    "resource": "vcam1",
+                    "method": "do_command",
+                    "payload": "{ 'command': 'save',
+                                'from': '<<time('%Y-%m-%d_%H-%M-%S', -10)>>',
+                                'to': '<<time('%Y-%m-%d_%H-%M-%S', 10)>>',
+                                'metadata': 'SAVCAM--<<triggered_resource>>--<<event_name>>',
+                                'async': True }"
+                },
                 {   
                     "sms_match": "1",
                     "when_secs": 60, 
@@ -202,7 +209,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
                     "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
-                    "payload": "{'relabel' : {'<<label>>': 'Known person'}}"
+                    "payload": "{'relabel' : {'<<triggered_label>>': 'Known person'}}"
                 }
             ]
         }
