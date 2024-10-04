@@ -137,7 +137,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
         "vcam1": {"type": "component", "subtype": "camera"},
         "vcam2": {"type": "component", "subtype": "camera"},
         "tracker1": {"type": "service", "subtype": "vision"},
-        "tracker1": {"type": "service", "subtype": "vision"}
+        "tracker2": {"type": "service", "subtype": "vision"}
     },
     "events": [
         {
@@ -149,7 +149,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
             "rules": [
                 {
                     "type": "tracker",
-                    "cameras": ["cam1"],
+                    "camera_config": { "camera": "cam1" "tracker": "tracker1" },
                     "tracker": "tracker1" 
                 }
             ], 
@@ -164,7 +164,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
             ]
         },
         {
-            "name": "new person camera 2",
+            "name": "a person camera 2",
             "modes": ["active"],
             "detection_hz": 2,
             "pause_alerting_on_event_secs": 120,
@@ -174,7 +174,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
                     "type": "detection",
                     "confidence_pct": 0.6,
                     "class_regex": "Person",                    
-                    "cameras": ["cam2"],
+                    "camera": "cam2",
                     "detector": "person_detector"
                 }
             ], 
