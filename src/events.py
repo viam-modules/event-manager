@@ -2,9 +2,14 @@ from . import notifications
 from . import rules
 from .actionClass import Action
 
+from viam.logging import getLogger
+LOGGER = getLogger(__name__)
 
 class Event():
     name: str
+    state: str = 'paused'
+    pause_alerting_on_event_secs: int = 300
+    detection_hz: int = 5
     notification_settings: list
     is_triggered: bool = False
     last_triggered: float = 0
@@ -28,15 +33,20 @@ class Event():
                 if key == "notifications":
                     for item in value:
                         if item["type"] == "sms":
-                            if "sms" in notification_settings:
-                                for s in notification_settings["sms"]:
-                                    item['to'] = s
-                                    self.__dict__[key].append(notifications.NotificationSMS(**item))
+                            LOGGER.error(item)
+                            for s in item["to"]:
+                                sms = {
+                                    "preset": item["preset"],
+                                    "to": s
+                                }
+                                self.__dict__[key].append(notifications.NotificationSMS(**sms))
                         elif item["type"] == "email":
-                            if "email" in notification_settings:
-                                for e in notification_settings["email"]:
-                                    item['to'] = e
-                            self.__dict__[key].append(notifications.NotificationEmail(**item))
+                            for s in item["to"]:
+                                email = {
+                                    "preset": item["preset"],
+                                    "to": s
+                                }
+                                self.__dict__[key].append(notifications.NotificationEmail(**email))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
                 elif key == "rules":

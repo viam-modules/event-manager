@@ -7,7 +7,12 @@ from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName, Vector3
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
+
 from viam.services.generic import Generic as GenericService
+from viam.components.sensor import Sensor
+from viam.utils import SensorReading
+
+
 from viam.utils import ValueTypes, struct_to_dict
 from viam.app.viam_client import ViamClient
 from viam.rpc.dial import DialOptions
@@ -22,29 +27,76 @@ from . import actions
 
 import time
 import asyncio
-import datetime
+from datetime import datetime, timezone
+import os
 from enum import Enum
 
 LOGGER = getLogger(__name__)
+
+# global event state so we can report on it via sensor
+event_states = []
 
 class Modes(Enum):
     active = 1
     inactive = 2
 
+class eventStatus(Sensor, Reconfigurable):
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "event-status")
+    
+    # Constructor
+    @classmethod
+    def new(cls, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
+        my_class = cls(config.name)
+        my_class.reconfigure(config, dependencies)
+        return my_class
+    
+    # Validates JSON Configuration
+    @classmethod
+    def validate(cls, config: ModuleConfig):
+        return []
+    
+    # Handles attribute reconfiguration
+    def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
+        return
+    
+    async def get_readings(
+        self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
+    ) -> Mapping[str, SensorReading]:
+        ret = {}
+        for e in event_states:
+            ret[e.name] = {
+                    "state": e.state,
+                }
+            if e.last_triggered > 0:
+                ret[e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
+                ret[e.name]["triggered_label"] = e.triggered_label
+            
+            actions = []
+            for a in e.actions:
+                a_ret = {
+                    "resource": a.resource,
+                    "payload": a.payload,
+                    "method": a.method,
+                    "taken": a.taken,
+                    "sms_match": a.sms_match
+                }
+                if a.when_secs > 0:
+                    a_ret["when"] = datetime.fromtimestamp( int(a.when_secs), timezone.utc).isoformat() + 'Z'
+                actions.append( a_ret )
+            ret[e.name]["actions"] = actions
+        return ret
+
 class eventManager(GenericService, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "eventing")
     
+    name: str
     mode: Modes = "inactive"
-    pause_alerting_on_event_secs: int = 300
-    pause_known_person_secs: int = 120
     event_video_capture_padding_secs: int = 10
-    detection_hz: int = 5
     app_client : None
     api_key_id: str
     api_key: str
     part_id: str
-    events = []
     robot_resources = {}
     run_loop = bool = True
 
@@ -89,31 +141,23 @@ class eventManager(GenericService, Reconfigurable):
         # setting this to false ensures that if the event loop is currently running, it will stop
         self.run_loop = False
 
+        self.name = config.name
+
         attributes = struct_to_dict(config.attributes)
         if attributes.get("mode"):
             self.mode = attributes.get("mode")
         else:
             self.mode = 'inactive'
 
-        if attributes.get('pause_known_person_secs'):
-            self.pause_known_person_secs = attributes.get('pause_known_person_secs')
-
-        if attributes.get('pause_alerting_on_event_secs'):
-            self.pause_alerting_on_event_secs = attributes.get('pause_alerting_on_event_secs')
-
         if attributes.get('event_video_capture_padding_secs'):
             self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
 
-        if attributes.get('detection_hz'):
-            self.detection_hz = attributes.get('detection_hz')
-
-        self.events = []
         dict_events = attributes.get("events")
         if dict_events is not None:
             for e in dict_events:
-                e['notification_settings'] = attributes.get('notifications')
                 event = Event(**e)
-                self.events.append(event)
+                event.state = "setup"
+                event_states.append(event)
 
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['camera_config'] = attributes.get("camera_config")
@@ -150,15 +194,16 @@ class eventManager(GenericService, Reconfigurable):
         self.app_client = await self.viam_connect()
 
         event: Event
-        for event in self.events:
+        for event in event_states:
             await asyncio.ensure_future(self.event_check_loop(event))
     
     async def event_check_loop(self, event:Event):
         LOGGER.info("Starting event check loop for " + event.name)
         while self.run_loop:
-            if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= self.pause_alerting_on_event_secs)))):
-                start_time = datetime.datetime.now()
-                
+            if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
+                start_time = datetime.now()
+                event.state = "monitoring"
+
                 # reset event ad actions before evaluating
                 event.is_triggered = False
                 event.actions_paused = False
@@ -173,16 +218,17 @@ class eventManager(GenericService, Reconfigurable):
                 if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
                     event.is_triggered = True
                     event.last_triggered = time.time()
+                    event.state = "triggered"
+
                     rule_index = 0
                     triggered_image = None
                     for rule in event.rules:
-                        if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'cameras'):
+                        if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'camera'):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
                             if "image" in rule_results[rule_index]:
                                 event.triggered_label = rule_results[rule_index]["label"]
-                            for c in rule.cameras:
-                                asyncio.ensure_future(triggered.request_capture(c, event.name, self.event_video_capture_padding_secs, self.robot_resources))
+                            asyncio.ensure_future(triggered.request_capture(rule.camera, event.name, self.event_video_capture_padding_secs, self.robot_resources))
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:
@@ -190,12 +236,13 @@ class eventManager(GenericService, Reconfigurable):
                         await notifications.notify(event.name, n, self.robot_resources)
 
                 # try to respect detection_hz as desired speed of detections
-                elapsed = (datetime.datetime.now() - start_time).total_seconds()
-                to_wait = (1 / self.detection_hz) - elapsed
+                elapsed = (datetime.now() - start_time).total_seconds()
+                to_wait = (1 / event.detection_hz) - elapsed
                 if to_wait > 0:
                     await asyncio.sleep(to_wait)
             elif (event.is_triggered == True) and (event.actions_paused == False):
                 LOGGER.debug("checking for ACTIONS")
+                event.state = "actioning"
                 # see if any actions need to be performed
                 sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
                 for action in event.actions:
@@ -207,6 +254,7 @@ class eventManager(GenericService, Reconfigurable):
                         await actions.do_action(event, action, self.robot_resources)
                 await asyncio.sleep(.5)
             else:
+                event.state = "paused"
                 # sleep for a bit longer if we know we are not currently checking for this event
                 await asyncio.sleep(.5)
     

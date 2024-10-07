@@ -4,7 +4,7 @@
 
 The model this module makes available is viam:event-manager:eventing
 
-The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
+The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
 The event manager can be configured with rules to evaluate, based on:
 
@@ -23,7 +23,7 @@ Video of any triggered event is captured and stored in Viam data management via 
 
 Actions can also be configured that occur either:
 
-* After X seconds after an event is triggered
+* X seconds after an event is triggered
 * Based on an SMS response
 
 Configured actions are methods and payloads on other configured Viam resources.
@@ -95,7 +95,6 @@ Delete a triggered event by ID
   "id": "<event_id",
   "location_id": "<location_id>",
   "organization_id": "<org_id>"
-
 }
 ```
 
@@ -112,6 +111,31 @@ Location ID for the event to delete.
 *organization_id* string
 
 Organization ID for the event to delete.
+
+#### get_state
+
+Returns JSON representing the current state of events:
+
+``` json
+[
+    {
+        "name": "a person camera 1",
+        "state": "actioning",
+        "last_triggered": "2024-10-04T19:59:45Z",
+        "triggered_label": "Person",
+        "triggered_resource": "cam1",
+        "actions_taken": [
+            {
+                "resource": "kasa_plug_1",
+                "method": "do_command",
+                "sms_match": "2",
+                "when": "2024-10-04T19:59:46Z",
+                "payload": "{'action' : 'toggle_on'}"
+            }
+        ]
+    }
+]
+```
 
 ## Viam event-manager Service Configuration
 
