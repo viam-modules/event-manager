@@ -145,6 +145,7 @@ The following example configures two events:
 * The first triggers when the system is "active" and a configured detector Vision service sees a "Person", sending an SMS and email, and turning on a kasa plug immediately.
 * The second triggers when the system is "active" and a configured tracker Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug in 30 seconds or if an SMS response '1' is received.
 If an SMS reponse of 2 is received, the kasa plug is turned off and the person detected is labeled.  If an SMS response of '3' is received, the kasa switch is turned off.
+Video is captured starting 10 seconds before the event (ending 10 seconds after).
 
 ```json
 {
@@ -236,22 +237,6 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
 
 Event manager mode, which is used in event evaluation based on configured event [modes](#modes)
 
-### event_video_capture_padding_secs
-
-*integer (default 10)*
-
-For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
-
-### notifications
-
-*object*
-
-An object containing two lists:
-
-*email* - A list of email addresses to send to for configured email notifications
-
-*sms* - A list of SMS numbers to send to for configured SMS notifications
-
 ### camera_config
 
 *object (required)*
@@ -262,21 +247,15 @@ An object containing configured physical camera component names as keys, and obj
 
 *vision_service*  - The name of the associated configured vision service to use.
 
-### action_resources
+### resources
 
 *object*
 
-If actions are configured, these are the associated resources to import and dependencies to use with the associated actions.
+These are the associated resources to import and dependencies to use with the action and event rules.
 The key is the name of the configured resource, with object containing:
 
 *type* - the resource type: component or service.
-*subtype* - the resource subtype - currently only 'generic' and 'vision' are supported.
-
-### detection_hz
-
-*integer (default 5)*
-
-How often rules are evaluated, best effort.
+*subtype* - the resource subtype - currently only 'generic' and 'vision' are supported for actions, for rules the types are context-specific by rule type.
 
 ### app_api_key
 
@@ -289,19 +268,6 @@ Used to interface with Viam data management for triggered event management
 *string (required)*
 
 Used to interface with Viam data management for triggered event management
-
-### pause_known_person_secs
-
-*integer (default 120)*
-
-How long to pause after a known person is seen before rules for the event are again evaluated.
-Only applies to events that are triggered by a "tracker" rule.
-
-### pause_alerting_on_event_secs
-
-*integer (default 300)*
-
-How long to pause after triggered event before rules for the event are again evaluated.
 
 ### email_module
 
@@ -337,6 +303,36 @@ Used in logging and notifications.
 
 The list of modes in which this event will be evaluated.
 
+#### capture_video
+
+*boolean (default false)*
+
+If enabled and a *video_capture_resource* is configured, video will be captured for triggered events.
+
+#### video_capture_resource
+
+*string*
+
+The name of a video capture resource, must also be specified in *resources* 
+
+#### pause_alerting_on_event_secs
+
+*integer (default 300)*
+
+How long to pause after triggered event before rules for the event are again evaluated.
+
+#### event_video_capture_padding_secs
+
+*integer (default 10)*
+
+For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
+
+#### detection_hz
+
+*integer (default 5)*
+
+How often rules are evaluated, best effort.
+
 #### rule_logic_type
 
 *enum AND|OR|XOR|NOR|NAND|XNOR (default AND)*
@@ -353,6 +349,8 @@ Notifications types when an event triggers.
 "type" is one of sms|email.
 
 "preset" is a string specifying the name of the preset message to send.
+
+"to" is a list of phone numbers or email addresses.
 
 ##### actions
 
@@ -403,4 +401,6 @@ If *type* is **time**, *ranges* must be defined, which is a list of *start_hour*
 
 ## Todo
 
+* Support other rule types like sensor readings
+* Support triggered event history that is not dependant on video storage
 * Support other types of webhooks
