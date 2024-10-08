@@ -11,7 +11,8 @@ from viam.resource.types import Model, ModelFamily
 from viam.services.generic import Generic as GenericService
 from viam.components.sensor import Sensor
 from viam.utils import SensorReading
-
+from viam.errors import NoCaptureToStoreError
+from viam.utils import from_dm_from_extra
 
 from viam.utils import ValueTypes, struct_to_dict
 from viam.app.viam_client import ViamClient
@@ -42,7 +43,8 @@ class Modes(Enum):
 
 class eventStatus(Sensor, Reconfigurable):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "event-status")
-    
+    dm_sent_status = {}
+
     # Constructor
     @classmethod
     def new(cls, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
@@ -64,6 +66,16 @@ class eventStatus(Sensor, Reconfigurable):
     ) -> Mapping[str, SensorReading]:
         ret = {}
         for e in event_states:
+            # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
+            if from_dm_from_extra(extra):
+                if (e.state == 'triggered') or (e.state == 'actioning'):
+                    if e.name in self.dm_sent_status and self.dm_sent_status[e.name] == e.last_triggered:
+                        continue
+                    else:
+                        self.dm_sent_status[e.name] = e.last_triggered
+                else:
+                    continue
+
             ret[e.name] = {
                     "state": e.state,
                 }
@@ -84,6 +96,10 @@ class eventStatus(Sensor, Reconfigurable):
                     a_ret["when"] = datetime.fromtimestamp( int(a.when_secs), timezone.utc).isoformat() + 'Z'
                 actions.append( a_ret )
             ret[e.name]["actions"] = actions
+
+        if from_dm_from_extra(extra) and len(ret) == 0:
+            raise NoCaptureToStoreError()
+        
         return ret
 
 class eventManager(GenericService, Reconfigurable):
@@ -97,7 +113,7 @@ class eventManager(GenericService, Reconfigurable):
     api_key: str
     part_id: str
     robot_resources = {}
-    run_loop = bool = True
+    run_loop: bool = True
 
     # Constructor
     @classmethod

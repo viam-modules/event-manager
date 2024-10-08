@@ -137,6 +137,8 @@ GetReadings() JSON returns the current state of events:
 }
 ```
 
+Note that if Viam data capture is enabled for the Readings() method, tabular data will be captured in this format for any triggered events.
+
 ## Viam event-manager Service Configuration
 
 The service configuration uses JSON to describe rules around events.
