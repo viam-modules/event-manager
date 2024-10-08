@@ -1,8 +1,7 @@
 # event-manager modular service
 
-*event-manager* is a Viam modular service that provides eventing capabilities using the generic component API.
-
-The model this module makes available is viam:event-manager:eventing
+*event-manager* is a Viam module that provides eventing capabilities using the generic service API through the viam:event-manager:eventing model.
+Status of the current event state is provided by the sensor API through the viam:event-manager:event-status model.
 
 The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
@@ -34,9 +33,9 @@ Triggered events can be queried and deleted with this module.
 
 ![](./event-manager-state.png)
 
-## API
+## Generic API
 
-The event-manager resource implements the [rdk generic API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/generic/v1/generic.proto).
+The event-manager resource implements the [rdk generic service API](https://github.com/viamrobotics/api/blob/main/proto/viam/service/generic/v1/generic.proto).
 
 ### do_command()
 
@@ -112,14 +111,15 @@ Location ID for the event to delete.
 
 Organization ID for the event to delete.
 
-#### get_state
+## Sensor API
 
-Returns JSON representing the current state of events:
+The event-manager resource also implements the [rdk sensor API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/sensor/v1/sensor.proto).
+
+GetReadings() JSON returns the current state of events:
 
 ``` json
-[
-    {
-        "name": "a person camera 1",
+{
+    "a person camera 1": {
         "state": "actioning",
         "last_triggered": "2024-10-04T19:59:45Z",
         "triggered_label": "Person",
@@ -134,7 +134,7 @@ Returns JSON representing the current state of events:
             }
         ]
     }
-]
+}
 ```
 
 ## Viam event-manager Service Configuration
