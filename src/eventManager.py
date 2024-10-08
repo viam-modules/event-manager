@@ -82,7 +82,6 @@ class eventStatus(Sensor, Reconfigurable):
             if e.last_triggered > 0:
                 ret[e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
                 ret[e.name]["triggered_label"] = e.triggered_label
-            
             actions = []
             for a in e.actions:
                 a_ret = {
@@ -240,7 +239,7 @@ class eventManager(GenericService, Reconfigurable):
                             if "image" in rule_results[rule_index]:
                                 event.triggered_label = rule_results[rule_index]["label"]
                             if event.capture_video:
-                                asyncio.ensure_future(triggered.request_capture(event.video_capture_resource, event.name, event.event_video_capture_padding_secs, self.robot_resources))
+                                asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:
@@ -280,7 +279,7 @@ class eventManager(GenericService, Reconfigurable):
         result = {}
         for name, args in command.items():
             if name == "get_triggered":
-                result["triggered"] = await triggered.get_triggered_cloud(num=args.get("number",5), camera=args.get("camera",None), event_name=args.get("event",None), app_client=self.app_client)
+                result["triggered"] = await triggered.get_triggered_cloud(num=args.get("number",5), event_name=args.get("event",None), app_client=self.app_client)
             elif name == "delete_triggered":
                 result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
         return result  

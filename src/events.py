@@ -36,7 +36,6 @@ class Event():
                 if key == "notifications":
                     for item in value:
                         if item["type"] == "sms":
-                            LOGGER.error(item)
                             for s in item["to"]:
                                 sms = {
                                     "preset": item["preset"],
