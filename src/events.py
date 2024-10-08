@@ -8,6 +8,9 @@ LOGGER = getLogger(__name__)
 class Event():
     name: str
     state: str = 'paused'
+    capture_video: bool = False
+    video_capture_resource: str
+    event_video_capture_padding_secs: int = 10
     pause_alerting_on_event_secs: int = 300
     detection_hz: int = 5
     notification_settings: list

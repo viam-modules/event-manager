@@ -157,11 +157,8 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
         "kasa_plug_1": {"type": "component", "subtype": "generic"},
         "kasa_plug_2": {"type": "component", "subtype": "generic"},
         "cam1": {"type": "component", "subtype": "camera"},
-        "cam2": {"type": "component", "subtype": "camera"},
         "vcam1": {"type": "component", "subtype": "camera"},
-        "vcam2": {"type": "component", "subtype": "camera"},
         "tracker1": {"type": "service", "subtype": "vision"},
-        "tracker2": {"type": "service", "subtype": "vision"}
     },
     "events": [
         {
@@ -192,28 +189,20 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
         {
             "name": "a new person camera 2",
             "modes": ["active"],
+            "capture_video" : true,
+            "video_capture_resource": "vcam1",
+            "event_video_capture_padding_secs": 10,
             "detection_hz": 2,
             "pause_alerting_on_event_secs": 120,
             "rule_logic_type": "AND",
             "rules": [
                 {
                     "type": "tracker",
-                    "camera": "cam2",
-                    "tracker": "tracker1" 
+                    "camera": "tracker1"
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "preset": "alert"}],
             "actions": [
-                {   
-                    "when_secs": 0, 
-                    "resource": "vcam1",
-                    "method": "do_command",
-                    "payload": "{ 'command': 'save',
-                                'from': '<<time('%Y-%m-%d_%H-%M-%S', -10)>>',
-                                'to': '<<time('%Y-%m-%d_%H-%M-%S', 10)>>',
-                                'metadata': 'SAVCAM--<<triggered_resource>>--<<event_name>>',
-                                'async': True }"
-                },
                 {   
                     "sms_match": "1",
                     "when_secs": 60, 

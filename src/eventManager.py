@@ -92,7 +92,6 @@ class eventManager(GenericService, Reconfigurable):
     
     name: str
     mode: Modes = "inactive"
-    event_video_capture_padding_secs: int = 10
     app_client : None
     api_key_id: str
     api_key: str
@@ -121,12 +120,9 @@ class eventManager(GenericService, Reconfigurable):
             raise Exception("An app_api_key_id must be defined")
         
         attributes = struct_to_dict(config.attributes)
-        camera_config = attributes.get("camera_config")
-        for c in camera_config:
-            deps.append(camera_config[c]["video_capture_camera"])
-            deps.append(camera_config[c]["vision_service"])
-        action_resources = attributes.get("action_resources")
-        for r in action_resources.keys():
+
+        resources = attributes.get("resources")
+        for r in resources.keys():
             deps.append(r)
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
@@ -160,8 +156,7 @@ class eventManager(GenericService, Reconfigurable):
                 event_states.append(event)
 
         self.robot_resources['_deps'] = dependencies
-        self.robot_resources['camera_config'] = attributes.get("camera_config")
-        self.robot_resources['action_resources'] = attributes.get("action_resources")
+        self.robot_resources['resources'] = attributes.get("resources")
 
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
@@ -228,7 +223,8 @@ class eventManager(GenericService, Reconfigurable):
                                 triggered_image = rule_results[rule_index]["image"]
                             if "image" in rule_results[rule_index]:
                                 event.triggered_label = rule_results[rule_index]["label"]
-                            asyncio.ensure_future(triggered.request_capture(rule.camera, event.name, self.event_video_capture_padding_secs, self.robot_resources))
+                            if event.capture_video:
+                                asyncio.ensure_future(triggered.request_capture(event.video_capture_resource, event.name, event.event_video_capture_padding_secs, self.robot_resources))
                         rule_index = rule_index + 1
                     for n in event.notifications:
                         if triggered_image != None:

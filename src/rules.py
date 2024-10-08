@@ -42,6 +42,7 @@ class RuleClassifier():
 class RuleTracker():
     type: str="tracker"
     camera: str
+    tracker: str
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -94,7 +95,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                     image = viam_to_pil_image(all.image)
                     label = c.class_name
         case "tracker":
-            tracker = _get_vision_service(rule.camera, resources)
+            tracker = _get_vision_service(rule.tracker, resources)
             all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
             approved = []
             # we need to get approved list to see if there
@@ -121,7 +122,7 @@ def logical_trigger(logic_type, list):
     return logic_function(list)
 
 def _get_vision_service(name, resources) -> Vision:
-    actual = resources['_deps'][VisionClient.get_resource_name(resources["camera_config"][name]["vision_service"])]
+    actual = resources['_deps'][VisionClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)

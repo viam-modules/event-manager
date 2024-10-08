@@ -87,7 +87,7 @@ def _label(event_name, cam_name):
     return _name_clean(f"SAVCAM--{event_name}--{cam_name}")
 
 def _get_video_store(name, resources) -> Camera:
-    actual = resources['_deps'][CameraClient.get_resource_name(resources["camera_config"][name]["video_capture_camera"])]
+    actual = resources['_deps'][CameraClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(CameraClient, actual)
