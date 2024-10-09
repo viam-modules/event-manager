@@ -32,13 +32,13 @@ async def eval_action(event:Event, action:Action, sms_message):
 
 async def do_action(event:Event, action:Action, resources):
     # certainly this could be improved
-    if (resources["action_resources"][action.resource]["type"] == "component") and (resources["action_resources"][action.resource]["subtype"] == "generic"):
+    if (resources["resources"][action.resource]["type"] == "component") and (resources["resources"][action.resource]["subtype"] == "generic"):
         resource_dep = resources['_deps'][GenericComponent.get_resource_name(action.resource)]
         resource = cast(GenericComponent, resource_dep)
-    if (resources["action_resources"][action.resource]["type"] == "service") and (resources["action_resources"][action.resource]["subtype"] == "generic"):
+    if (resources["resources"][action.resource]["type"] == "service") and (resources["resources"][action.resource]["subtype"] == "generic"):
         resource_dep = resources['_deps'][GenericService.get_resource_name(action.resource)]
         resource = cast(GenericService, resource_dep)
-    if (resources["action_resources"][action.resource]["type"] == "service") and (resources["action_resources"][action.resource]["subtype"] == "vision"):
+    if (resources["resources"][action.resource]["type"] == "service") and (resources["resources"][action.resource]["subtype"] == "vision"):
         resource_dep = resources['_deps'][VisionClient.get_resource_name(action.resource)]
         resource = cast(VisionClient, resource_dep)
 

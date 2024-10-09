@@ -1,10 +1,9 @@
 # event-manager modular service
 
-*event-manager* is a Viam modular service that provides eventing capabilities using the generic component API.
+*event-manager* is a Viam module that provides eventing capabilities using the generic service API through the viam:event-manager:eventing model.
+Status of the current event state is provided by the sensor API through the viam:event-manager:event-status model.
 
-The model this module makes available is viam:event-manager:eventing
-
-The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring events, viewing camera feeds, and viewing alerts.
+The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
 The event manager can be configured with rules to evaluate, based on:
 
@@ -23,7 +22,7 @@ Video of any triggered event is captured and stored in Viam data management via 
 
 Actions can also be configured that occur either:
 
-* After X seconds after an event is triggered
+* X seconds after an event is triggered
 * Based on an SMS response
 
 Configured actions are methods and payloads on other configured Viam resources.
@@ -34,9 +33,9 @@ Triggered events can be queried and deleted with this module.
 
 ![](./event-manager-state.png)
 
-## API
+## Generic API
 
-The event-manager resource implements the [rdk generic API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/generic/v1/generic.proto).
+The event-manager resource implements the [rdk generic service API](https://github.com/viamrobotics/api/blob/main/proto/viam/service/generic/v1/generic.proto).
 
 ### do_command()
 
@@ -60,9 +59,8 @@ Return details for triggered events in the following format:
     [
         {
             "event": "Unexpected person",
-            "camera": "cam1",
             "time": 1703172467,
-            "id": "edc519e5-85fe-42ab-af3c-506fcc827948",
+            "video_id": "edc519e5-85fe-42ab-af3c-506fcc827948",
             "organization_id": "72ff9713-adc7-4b15-a95b-2174468bde19",
             "location_id": "x7ahxaMJEfF"
         }
@@ -70,7 +68,7 @@ Return details for triggered events in the following format:
 }
 ```
 
-Note that ID is the ID of the corresponding video in Viam's Data Management.
+Note that video_id is the ID of the corresponding video in Viam's Data Management, if one was saved.
 
 The following arguments are supported:
 
@@ -78,24 +76,19 @@ The following arguments are supported:
 
 Number of triggered to return - default 5
 
-*camera* string
-
-Name of camera to return triggered for.  If not specified, will return triggered across all cameras.
-
 *event* string
 
 Name of configured event name to return triggered for.  If not specified, will return triggered across all events.
 
-#### delete_triggered
+#### delete_triggered_video
 
-Delete a triggered event by ID
+Delete a triggered event by video ID
 
 ```json
 {
   "id": "<event_id",
   "location_id": "<location_id>",
   "organization_id": "<org_id>"
-
 }
 ```
 
@@ -103,7 +96,7 @@ The following arguments are supported and required:
 
 *id* string
 
-The event ID.
+The event video ID.
 
 *location_id* string
 
@@ -113,6 +106,34 @@ Location ID for the event to delete.
 
 Organization ID for the event to delete.
 
+## Sensor API
+
+The event-manager resource also implements the [rdk sensor API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/sensor/v1/sensor.proto).
+
+GetReadings() JSON returns the current state of events:
+
+``` json
+{
+    "a person camera 1": {
+        "state": "actioning",
+        "last_triggered": "2024-10-04T19:59:45Z",
+        "triggered_label": "Person",
+        "triggered_resource": "cam1",
+        "actions_taken": [
+            {
+                "resource": "kasa_plug_1",
+                "method": "do_command",
+                "sms_match": "2",
+                "when": "2024-10-04T19:59:46Z",
+                "payload": "{'action' : 'toggle_on'}"
+            }
+        ]
+    }
+}
+```
+
+Note that if Viam data capture is enabled for the Readings() method, tabular data will be captured in this format for any triggered events.
+
 ## Viam event-manager Service Configuration
 
 The service configuration uses JSON to describe rules around events.
@@ -121,45 +142,39 @@ The following example configures two events:
 * The first triggers when the system is "active" and a configured detector Vision service sees a "Person", sending an SMS and email, and turning on a kasa plug immediately.
 * The second triggers when the system is "active" and a configured tracker Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug in 30 seconds or if an SMS response '1' is received.
 If an SMS reponse of 2 is received, the kasa plug is turned off and the person detected is labeled.  If an SMS response of '3' is received, the kasa switch is turned off.
+Video is captured starting 10 seconds before the event (ending 10 seconds after).
 
 ```json
 {
     "mode": "active",
-    "pause_known_person_secs": 3600,
-    "pause_alerting_on_event_secs": 300,
-    "event_video_capture_padding_secs": 10,
-    "detection_hz": 5,
     "app_api_key": "daifdkaddkdfhshfeasw",
     "app_api_key_id": "weygwegqeyygadydagfd",
     "email_module": "shared-alerting:email",
     "sms_module": "shared-alerting:sms",
-    "camera_config": {
-        "cam1" : { "video_capture_camera": "vcam1", "vision_service": "tracker1" },
-        "cam2" : { "video_capture_camera": "vcam2", "vision_service": "person_detector" },
-    },
-    "action_resources": {
+    "resources": {
         "kasa_plug_1": {"type": "component", "subtype": "generic"},
         "kasa_plug_2": {"type": "component", "subtype": "generic"},
-        "vcam1": {"type": "service", "subtype": "vision"}
+        "cam1": {"type": "component", "subtype": "camera"},
+        "vcam1": {"type": "component", "subtype": "camera"},
+        "tracker1": {"type": "service", "subtype": "vision"},
     },
-    "notifications": {
-        "email": ["test@somedomain.com"],
-        "sms": ["123-456-7890"]
-    },
-    "sms_module": "sms",
-    "email_module": "email",
     "events": [
         {
-            "name": "new person camera 1",
+            "name": "a person camera 1",
             "modes": ["active"],
+            "pause_alerting_on_event_secs": 300,
+            "detection_hz": 5,
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "tracker",
-                    "cameras": ["vcam1"]
+                    "type": "detection",
+                    "confidence_pct": 0.6,
+                    "class_regex": "Person",                    
+                    "camera": "cam1",
+                    "detector": "person_detector"
                 }
             ], 
-            "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
+            "notifications": [{"type": "sms", "to": ["123-456-7890"], "preset": "alert"}, {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}],
             "actions": [
                 {   
                     "when_secs": 0, 
@@ -170,18 +185,21 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
             ]
         },
         {
-            "name": "new person camera 2",
+            "name": "a new person camera 2",
             "modes": ["active"],
+            "capture_video" : true,
+            "video_capture_resource": "vcam1",
+            "event_video_capture_padding_secs": 10,
+            "detection_hz": 2,
+            "pause_alerting_on_event_secs": 120,
             "rule_logic_type": "AND",
             "rules": [
                 {
-                    "type": "detection",
-                    "confidence_pct": 0.6,
-                    "class_regex": "Person",                    
-                    "cameras": ["vcam2"]
+                    "type": "tracker",
+                    "camera": "tracker1"
                 }
             ], 
-            "notifications": [{"type": "sms", "preset": "alert"}, {"type": "email", "preset": "alert"}],
+            "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "preset": "alert"}],
             "actions": [
                 {   
                     "sms_match": "1",
@@ -202,7 +220,7 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
                     "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
-                    "payload": "{'relabel' : {'<<label>>': 'Known person'}}"
+                    "payload": "{'relabel' : {'<<triggered_label>>': 'Known person'}}"
                 }
             ]
         }
@@ -216,22 +234,6 @@ If an SMS reponse of 2 is received, the kasa plug is turned off and the person d
 
 Event manager mode, which is used in event evaluation based on configured event [modes](#modes)
 
-### event_video_capture_padding_secs
-
-*integer (default 10)*
-
-For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
-
-### notifications
-
-*object*
-
-An object containing two lists:
-
-*email* - A list of email addresses to send to for configured email notifications
-
-*sms* - A list of SMS numbers to send to for configured SMS notifications
-
 ### camera_config
 
 *object (required)*
@@ -242,21 +244,15 @@ An object containing configured physical camera component names as keys, and obj
 
 *vision_service*  - The name of the associated configured vision service to use.
 
-### action_resources
+### resources
 
 *object*
 
-If actions are configured, these are the associated resources to import and dependencies to use with the associated actions.
+These are the associated resources to import and dependencies to use with the action and event rules.
 The key is the name of the configured resource, with object containing:
 
 *type* - the resource type: component or service.
-*subtype* - the resource subtype - currently only 'generic' and 'vision' are supported.
-
-### detection_hz
-
-*integer (default 5)*
-
-How often rules are evaluated, best effort.
+*subtype* - the resource subtype - currently only 'generic' and 'vision' are supported for actions, for rules the types are context-specific by rule type.
 
 ### app_api_key
 
@@ -269,19 +265,6 @@ Used to interface with Viam data management for triggered event management
 *string (required)*
 
 Used to interface with Viam data management for triggered event management
-
-### pause_known_person_secs
-
-*integer (default 120)*
-
-How long to pause after a known person is seen before rules for the event are again evaluated.
-Only applies to events that are triggered by a "tracker" rule.
-
-### pause_alerting_on_event_secs
-
-*integer (default 300)*
-
-How long to pause after triggered event before rules for the event are again evaluated.
 
 ### email_module
 
@@ -317,6 +300,36 @@ Used in logging and notifications.
 
 The list of modes in which this event will be evaluated.
 
+#### capture_video
+
+*boolean (default false)*
+
+If enabled and a *video_capture_resource* is configured, video will be captured for triggered events.
+
+#### video_capture_resource
+
+*string*
+
+The name of a video capture resource, must also be specified in *resources* 
+
+#### pause_alerting_on_event_secs
+
+*integer (default 300)*
+
+How long to pause after triggered event before rules for the event are again evaluated.
+
+#### event_video_capture_padding_secs
+
+*integer (default 10)*
+
+For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
+
+#### detection_hz
+
+*integer (default 5)*
+
+How often rules are evaluated, best effort.
+
 #### rule_logic_type
 
 *enum AND|OR|XOR|NOR|NAND|XNOR (default AND)*
@@ -334,9 +347,11 @@ Notifications types when an event triggers.
 
 "preset" is a string specifying the name of the preset message to send.
 
+"to" is a list of phone numbers or email addresses.
+
 ##### actions
 
-*list (required)*
+*list*
 
 A list of objects containing:
 
@@ -348,7 +363,12 @@ Currently only "generic" components and services, as well as vision services are
 "payload" - The JSON payload to pass to the method.
 Pass as a string that will be decoded to JSON.
 Single quotes will get translated to double quotes so as to validate as proper JSON.
-If your JSON string includes ```<<label>>``` it will be replaced with the the label detected when the event was triggered.
+The following can variables be included enclosed in```<<>>``` (for example ```<<triggered_label>>```) and replaced with the corresponding value:
+
+* event_name: The **name** of the event that was triggered.
+* triggered_label: If the event was triggered via a computer vision service, this is the label/class that triggered the event.
+* triggered_resource: The name of the resource that triggered the event.
+* time: Passed as a function call with the first argument being a [Python strftime](https://www.programiz.com/python-programming/datetime/strftime) time format, and the second argument being the number of seconds offset from the time of the event (default 0). A formatted time string will be returned.
 
 "sms_match" -  if a phone number that was notified when this event was triggered sends an SMS response and the response matches "sms_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.
@@ -378,4 +398,7 @@ If *type* is **time**, *ranges* must be defined, which is a list of *start_hour*
 
 ## Todo
 
+* Support other rule types like sensor readings
+* Support triggered event history that is not dependant on video storage
 * Support other types of webhooks
+* Make event subprocesses fault tolerant
