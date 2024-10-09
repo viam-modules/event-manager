@@ -280,6 +280,6 @@ class eventManager(GenericService, Reconfigurable):
         for name, args in command.items():
             if name == "get_triggered":
                 result["triggered"] = await triggered.get_triggered_cloud(num=args.get("number",5), event_name=args.get("event",None), app_client=self.app_client)
-            elif name == "delete_triggered":
+            elif name == "delete_triggered_video":
                 result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
         return result  

@@ -59,9 +59,8 @@ Return details for triggered events in the following format:
     [
         {
             "event": "Unexpected person",
-            "camera": "cam1",
             "time": 1703172467,
-            "id": "edc519e5-85fe-42ab-af3c-506fcc827948",
+            "video_id": "edc519e5-85fe-42ab-af3c-506fcc827948",
             "organization_id": "72ff9713-adc7-4b15-a95b-2174468bde19",
             "location_id": "x7ahxaMJEfF"
         }
@@ -69,7 +68,7 @@ Return details for triggered events in the following format:
 }
 ```
 
-Note that ID is the ID of the corresponding video in Viam's Data Management.
+Note that video_id is the ID of the corresponding video in Viam's Data Management, if one was saved.
 
 The following arguments are supported:
 
@@ -77,17 +76,13 @@ The following arguments are supported:
 
 Number of triggered to return - default 5
 
-*camera* string
-
-Name of camera to return triggered for.  If not specified, will return triggered across all cameras.
-
 *event* string
 
 Name of configured event name to return triggered for.  If not specified, will return triggered across all events.
 
-#### delete_triggered
+#### delete_triggered_video
 
-Delete a triggered event by ID
+Delete a triggered event by video ID
 
 ```json
 {
@@ -101,7 +96,7 @@ The following arguments are supported and required:
 
 *id* string
 
-The event ID.
+The event video ID.
 
 *location_id* string
 
