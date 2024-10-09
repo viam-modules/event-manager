@@ -1,7 +1,6 @@
 # event-manager modular service
 
-*event-manager* is a Viam module that provides eventing capabilities using the generic service API through the viam:event-manager:eventing model.
-Status of the current event state is provided by the sensor API through the viam:event-manager:event-status model.
+*event-manager* is a Viam module that provides eventing capabilities using the sensor component API through the viam:event-manager:eventing model.
 
 The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
@@ -33,9 +32,9 @@ Triggered events can be queried and deleted with this module.
 
 ![](./event-manager-state.png)
 
-## Generic API
+## Sensor API
 
-The event-manager resource implements the [rdk generic service API](https://github.com/viamrobotics/api/blob/main/proto/viam/service/generic/v1/generic.proto).
+The event-manager resource implements the [rdk sensor component API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/sensor/v1/sensor.proto).
 
 ### do_command()
 
@@ -43,7 +42,6 @@ Examples:
 
 ```python
 await em.do_command({"get_triggered": {"number": 5}}) # get 5 most recent triggered across all configured events
-await em.do_command({"get_triggered": {"number": 5, "camera": "ipcam"}}) # get 5 most recent triggered for "ipcam" across all configured events
 await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night"}}) # get 5 most recent triggers for event "Pets out at night"
 
 await em.do_command({"delete_triggered": {"id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX", "location_id": "dsafadad", "organization_id": "adasdsadasw"}}) # delete triggered event based on ID
@@ -106,11 +104,9 @@ Location ID for the event to delete.
 
 Organization ID for the event to delete.
 
-## Sensor API
+### get_readings()
 
-The event-manager resource also implements the [rdk sensor API](https://github.com/viamrobotics/api/blob/main/proto/viam/component/sensor/v1/sensor.proto).
-
-GetReadings() JSON returns the current state of events:
+get_readings() JSON returns the current state of events:
 
 ``` json
 {
@@ -133,6 +129,7 @@ GetReadings() JSON returns the current state of events:
 ```
 
 Note that if Viam data capture is enabled for the Readings() method, tabular data will be captured in this format for any triggered events.
+This is required in order to use the do_command() get_triggered command.
 
 ## Viam event-manager Service Configuration
 

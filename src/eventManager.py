@@ -34,74 +34,14 @@ from enum import Enum
 
 LOGGER = getLogger(__name__)
 
-# global event state so we can report on it via sensor
+# global event state so we can report on it via other models
 event_states = []
 
 class Modes(Enum):
     active = 1
     inactive = 2
 
-class eventStatus(Sensor, Reconfigurable):
-    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "event-status")
-    dm_sent_status = {}
-
-    # Constructor
-    @classmethod
-    def new(cls, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
-        my_class = cls(config.name)
-        my_class.reconfigure(config, dependencies)
-        return my_class
-    
-    # Validates JSON Configuration
-    @classmethod
-    def validate(cls, config: ModuleConfig):
-        return []
-    
-    # Handles attribute reconfiguration
-    def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
-        return
-    
-    async def get_readings(
-        self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
-    ) -> Mapping[str, SensorReading]:
-        ret = {}
-        for e in event_states:
-            # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
-            if from_dm_from_extra(extra):
-                if (e.state == 'triggered') or (e.state == 'actioning'):
-                    if e.name in self.dm_sent_status and self.dm_sent_status[e.name] == e.last_triggered:
-                        continue
-                    else:
-                        self.dm_sent_status[e.name] = e.last_triggered
-                else:
-                    continue
-
-            ret[e.name] = {
-                    "state": e.state,
-                }
-            if e.last_triggered > 0:
-                ret[e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
-                ret[e.name]["triggered_label"] = e.triggered_label
-            actions = []
-            for a in e.actions:
-                a_ret = {
-                    "resource": a.resource,
-                    "payload": a.payload,
-                    "method": a.method,
-                    "taken": a.taken,
-                    "sms_match": a.sms_match
-                }
-                if a.when_secs > 0:
-                    a_ret["when"] = datetime.fromtimestamp( int(a.when_secs), timezone.utc).isoformat() + 'Z'
-                actions.append( a_ret )
-            ret[e.name]["actions"] = actions
-
-        if from_dm_from_extra(extra) and len(ret) == 0:
-            raise NoCaptureToStoreError()
-        
-        return ret
-
-class eventManager(GenericService, Reconfigurable):
+class eventManager(Sensor, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "eventing")
     
@@ -113,6 +53,7 @@ class eventManager(GenericService, Reconfigurable):
     part_id: str
     robot_resources = {}
     run_loop: bool = True
+    dm_sent_status = {}
 
     # Constructor
     @classmethod
@@ -283,3 +224,43 @@ class eventManager(GenericService, Reconfigurable):
             elif name == "delete_triggered_video":
                 result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
         return result  
+    
+    async def get_readings(
+        self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
+    ) -> Mapping[str, SensorReading]:
+        ret = {}
+        for e in event_states:
+            # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
+            if from_dm_from_extra(extra):
+                if (e.state == 'triggered') or (e.state == 'actioning'):
+                    if e.name in self.dm_sent_status and self.dm_sent_status[e.name] == e.last_triggered:
+                        continue
+                    else:
+                        self.dm_sent_status[e.name] = e.last_triggered
+                else:
+                    continue
+
+            ret[e.name] = {
+                    "state": e.state,
+                }
+            if e.last_triggered > 0:
+                ret[e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
+                ret[e.name]["triggered_label"] = e.triggered_label
+            actions = []
+            for a in e.actions:
+                a_ret = {
+                    "resource": a.resource,
+                    "payload": a.payload,
+                    "method": a.method,
+                    "taken": a.taken,
+                    "sms_match": a.sms_match
+                }
+                if a.when_secs > 0:
+                    a_ret["when"] = datetime.fromtimestamp( int(a.when_secs), timezone.utc).isoformat() + 'Z'
+                actions.append( a_ret )
+            ret[e.name]["actions"] = actions
+
+        if from_dm_from_extra(extra) and len(ret) == 0:
+            raise NoCaptureToStoreError()
+        
+        return ret
