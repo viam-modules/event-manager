@@ -399,6 +399,5 @@ If *type* is **time**, *ranges* must be defined, which is a list of *start_hour*
 ## Todo
 
 * Support other rule types like sensor readings
-* Support triggered event history that is not dependant on video storage
 * Support other types of webhooks
 * Make event subprocesses fault tolerant
