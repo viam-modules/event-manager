@@ -146,8 +146,9 @@ class eventManager(Sensor, Reconfigurable):
         self.app_client = await self.viam_connect()
 
         event: Event
+        LOGGER.error(event_states)
         for event in event_states:
-            await asyncio.ensure_future(self.event_check_loop(event))
+            asyncio.ensure_future(self.event_check_loop(event))
     
     async def event_check_loop(self, event:Event):
         LOGGER.info("Starting event check loop for " + event.name)
