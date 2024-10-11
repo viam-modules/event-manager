@@ -35,9 +35,6 @@ from enum import Enum
 
 LOGGER = getLogger(__name__)
 
-# global event state so we can report on it via other models
-event_states = []
-
 class Modes(Enum):
     active = 1
     inactive = 2
@@ -55,6 +52,7 @@ class eventManager(Sensor, Reconfigurable):
     robot_resources = {}
     run_loop: bool = True
     dm_sent_status = {}
+    event_states = []
 
     # Constructor
     @classmethod
@@ -96,6 +94,9 @@ class eventManager(Sensor, Reconfigurable):
 
         self.name = config.name
 
+        # reset event states
+        self.event_states = []
+
         attributes = struct_to_dict(config.attributes)
         if attributes.get("mode"):
             self.mode = attributes.get("mode")
@@ -110,7 +111,7 @@ class eventManager(Sensor, Reconfigurable):
             for e in dict_events:
                 event = Event(**e)
                 event.state = "setup"
-                event_states.append(event)
+                self.event_states.append(event)
 
         self.robot_resources['_deps'] = dependencies
         self.robot_resources['resources'] = attributes.get("resources")
@@ -146,8 +147,7 @@ class eventManager(Sensor, Reconfigurable):
         self.app_client = await self.viam_connect()
 
         event: Event
-        LOGGER.error(event_states)
-        for event in event_states:
+        for event in self.event_states:
             asyncio.ensure_future(self.event_check_loop(event))
     
     async def event_check_loop(self, event:Event):
@@ -244,7 +244,7 @@ class eventManager(Sensor, Reconfigurable):
             graph = pydot.Dot("my_graph", graph_type="digraph", bgcolor="white", fontname="Courier", fontsize="12pt")
 
         event_number = 0
-        for e in event_states:
+        for e in self.event_states:
             # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
             if from_dm_from_extra(extra):
                 if (e.state == 'triggered') or (e.state == 'actioning'):
