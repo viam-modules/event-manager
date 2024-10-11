@@ -25,6 +25,7 @@ class TimeRange():
 class RuleDetector():
     type: str="detection"
     camera: str
+    detector: str
     class_regex: str
     confidence_pct: float
     def __init__(self, **kwargs):
@@ -33,6 +34,7 @@ class RuleDetector():
 class RuleClassifier():
     type: str="classification"
     camera: str
+    classifier: str
     class_regex: str
     confidence_pct: float
     def __init__(self, **kwargs):
@@ -59,10 +61,6 @@ class RuleTime():
             else:
                 self.__dict__[key] = value
 
-class CameraCache():
-    camera: Camera
-    last_image: ViamImage
-
 async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resources):
     triggered = False
     image = None
@@ -75,7 +73,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                     LOGGER.debug("Time triggered")
                     triggered = True   
         case "detection":
-            detector = _get_vision_service(rule.camera, resources)
+            detector = _get_vision_service(rule.detector, resources)
             all = await detector.capture_all_from_camera(rule.camera, return_detections=True, return_image=True)
             d: Detection
             for d in all.detections:
@@ -85,7 +83,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker, resou
                     image = viam_to_pil_image(all.image)
                     label = d.class_name
         case "classification":
-            classifier = _get_vision_service(rule.camera, resources)
+            classifier = _get_vision_service(rule.classifier, resources)
             all = await classifier.capture_all_from_camera(rule.camera, return_classifications=True, return_image=True)
             c: Classification
             for c in all.classifications:

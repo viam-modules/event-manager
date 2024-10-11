@@ -52,10 +52,11 @@ async def get_triggered_cloud(event_name:str=None, num:int=5, app_client:ViamCli
     # TODO: currently there is an assumption that no other tabular data is being stored.  Improve this.
     tabular_data = await app_client.data_client.tabular_data_by_filter(filter=Filter(**filter_args), limit=100, sort_order=Order.ORDER_DESCENDING)
     for tabluar in tabular_data[0]:
-        for reading in tabluar.data["readings"]:
+        state = tabluar.data["readings"]["state"]
+        for reading in state:
             if event_name == None or event_name == reading:
-                matched_index_by_dt[tabluar.data["readings"][reading]["last_triggered"]] = len(matched)
-                matched.append({"event": reading, "time": tabluar.data["readings"][reading]["last_triggered"],
+                matched_index_by_dt[state[reading]["last_triggered"]] = len(matched)
+                matched.append({"event": reading, "time": state[reading]["last_triggered"],
                                 "location_id": tabluar.metadata.location_id, "organization_id": tabluar.metadata.organization_id })
             if len(matched) == num:
                 break

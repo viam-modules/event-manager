@@ -110,26 +110,31 @@ get_readings() JSON returns the current state of events:
 
 ``` json
 {
-    "a person camera 1": {
-        "state": "actioning",
-        "last_triggered": "2024-10-04T19:59:45Z",
-        "triggered_label": "Person",
-        "triggered_resource": "cam1",
-        "actions_taken": [
-            {
-                "resource": "kasa_plug_1",
-                "method": "do_command",
-                "sms_match": "2",
-                "when": "2024-10-04T19:59:46Z",
-                "payload": "{'action' : 'toggle_on'}"
-            }
-        ]
+    "state": 
+    {
+        "a person camera 1": {
+            "state": "actioning",
+            "last_triggered": "2024-10-04T19:59:45Z",
+            "triggered_label": "Person",
+            "triggered_resource": "cam1",
+            "actions_taken": [
+                {
+                    "resource": "kasa_plug_1",
+                    "method": "do_command",
+                    "sms_match": "2",
+                    "when": "2024-10-04T19:59:46Z",
+                    "payload": "{'action' : 'toggle_on'}"
+                }
+            ]
+        }
     }
 }
 ```
 
 Note that if Viam data capture is enabled for the Readings() method, tabular data will be captured in this format for any triggered events.
 This is required in order to use the do_command() get_triggered command.
+
+If "include_dot": true is passed as an "extra" parameter, a [DOT string](https://graphviz.org/doc/info/lang.html) representing a state diagram will be returned with the key "dot".
 
 ## Viam event-manager Service Configuration
 
@@ -385,9 +390,9 @@ Any number of rules can be configured for a given event.
 
 *enum detection|classification|tracker|time*
 
-If *type* is **detection**, *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **detection**, *camera* (configured cameras included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
 
-If *type* is **classification**, *cameras* (list of configured cameras), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **classification**, *camera* (configured cameras included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
 
 If *type* is **tracker**, *cameras* (list of configured cameras) must be defined.
 

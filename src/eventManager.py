@@ -30,6 +30,7 @@ import time
 import asyncio
 from datetime import datetime, timezone
 import os
+import pydot
 from enum import Enum
 
 LOGGER = getLogger(__name__)
@@ -177,7 +178,7 @@ class eventManager(Sensor, Reconfigurable):
                         if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'camera'):
                             if "image" in rule_results[rule_index]:
                                 triggered_image = rule_results[rule_index]["image"]
-                            if "image" in rule_results[rule_index]:
+                            if "label" in rule_results[rule_index]:
                                 event.triggered_label = rule_results[rule_index]["label"]
                             if event.capture_video:
                                 asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
@@ -228,7 +229,15 @@ class eventManager(Sensor, Reconfigurable):
     async def get_readings(
         self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Mapping[str, SensorReading]:
-        ret = {}
+        ret = { "state": {} }
+        include_dot = False
+        graph: pydot.Graph
+        if "include_dot" in extra:
+            include_dot = extra["include_dot"]
+        if include_dot:
+            graph = pydot.Dot("my_graph", graph_type="digraph", bgcolor="white", fontname="Courier", fontsize="12pt")
+
+        state_number = 0
         for e in event_states:
             # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
             if from_dm_from_extra(extra):
@@ -240,12 +249,34 @@ class eventManager(Sensor, Reconfigurable):
                 else:
                     continue
 
-            ret[e.name] = {
+            ret["state"][e.name] = {
                     "state": e.state,
                 }
+            
             if e.last_triggered > 0:
-                ret[e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
-                ret[e.name]["triggered_label"] = e.triggered_label
+                ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
+                ret["state"][e.name]["triggered_label"] = e.triggered_label
+
+            if include_dot:
+                state_number = state_number + 1
+
+                layer = pydot.Subgraph(f'cluster_{state_number}', label=e.name, labelloc="t", style="solid")
+
+                layer.add_node(pydot.Node("Setup", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "setup")))
+                layer.add_node(pydot.Node("Monitoring", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "monitoring")))
+
+                triggered_label = "Triggered"
+                if "last_triggered" in ret["state"][e.name]:
+                    triggered_label = triggered_label + "\n" + ret["state"][e.name]["last_triggered"]
+                    triggered_label = triggered_label + "\n" + ret["state"][e.name]["triggered_label"]
+                layer.add_node(pydot.Node("Triggered", label=triggered_label, fontname="Courier", fontsize="10pt", color=layer_color(e.state, "triggered")))
+                
+                layer.add_node(pydot.Node("Paused", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "paused")))
+
+                layer.add_edge(pydot.Edge("Setup", "Monitoring"))
+                layer.add_edge(pydot.Edge("Monitoring", "Triggered"))
+                layer.add_edge(pydot.Edge("Paused", "Monitoring"))
+            
             actions = []
             for a in e.actions:
                 a_ret = {
@@ -255,12 +286,34 @@ class eventManager(Sensor, Reconfigurable):
                     "taken": a.taken,
                     "sms_match": a.sms_match
                 }
-                if a.when_secs > 0:
-                    a_ret["when"] = datetime.fromtimestamp( int(a.when_secs), timezone.utc).isoformat() + 'Z'
+                if a.taken:
+                    a_ret["when"] = datetime.fromtimestamp( int(a.last_taken), timezone.utc).isoformat() + 'Z'
                 actions.append( a_ret )
-            ret[e.name]["actions"] = actions
 
-        if from_dm_from_extra(extra) and len(ret) == 0:
+                if include_dot:
+                    a_label = f'Actioning\n{a.resource}/{a.method}'
+                    a_font = "Courier"
+                    if "when" in a_ret:
+                        a_label = a_label + f'\n{a_ret["when"]}'
+                        a_font = "Courier bold"
+                    action_node= pydot.Node(f'a{len(actions)}', label=a_label, fontname=a_font, fontsize="10pt", color=layer_color(e.state, "actioning"))
+                    layer.add_node(action_node)
+                    layer.add_edge(pydot.Edge("Triggered", f'a{len(actions)}'))
+                    layer.add_edge(pydot.Edge(f'a{len(actions)}', "Paused"))
+
+            ret["state"][e.name]["actions"] = actions
+            if include_dot:
+                graph.add_subgraph(layer)
+
+        if from_dm_from_extra(extra) and len(ret["state"]) == 0:
             raise NoCaptureToStoreError()
         
+        if include_dot:
+            ret["dot"] = graph.to_string()
         return ret
+    
+def layer_color (state, state_node):
+    if state == state_node:
+        return "red"
+    else:
+        return "black"

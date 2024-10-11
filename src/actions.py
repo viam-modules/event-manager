@@ -48,3 +48,4 @@ async def do_action(event:Event, action:Action, resources):
     action.payload = action.payload.replace('<<label>>', event.triggered_label)
     await method(json.loads(action.payload.replace("'", "\"")))
     action.taken = True
+    action.last_taken = time.time()
