@@ -196,6 +196,11 @@ class eventManager(Sensor, Reconfigurable):
             elif (event.is_triggered == True) and (event.actions_paused == False):
                 LOGGER.debug("checking for ACTIONS")
                 event.state = "actioning"
+
+                if len(event.actions) == 0:
+                    event.actions_paused = True
+                    continue
+
                 # see if any actions need to be performed
                 sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
                 for action in event.actions:
@@ -237,7 +242,7 @@ class eventManager(Sensor, Reconfigurable):
         if include_dot:
             graph = pydot.Dot("my_graph", graph_type="digraph", bgcolor="white", fontname="Courier", fontsize="12pt")
 
-        state_number = 0
+        event_number = 0
         for e in event_states:
             # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
             if from_dm_from_extra(extra):
@@ -258,24 +263,24 @@ class eventManager(Sensor, Reconfigurable):
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
 
             if include_dot:
-                state_number = state_number + 1
+                event_number = event_number + 1
 
-                layer = pydot.Subgraph(f'cluster_{state_number}', label=e.name, labelloc="t", style="solid")
+                layer = pydot.Subgraph(f'cluster_{event_number}', label=e.name, labelloc="t", style="solid")
 
-                layer.add_node(pydot.Node("Setup", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "setup")))
-                layer.add_node(pydot.Node("Monitoring", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "monitoring")))
+                layer.add_node(pydot.Node(f'Setup{event_number}', label="Setup", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "setup")))
+                layer.add_node(pydot.Node(f'Monitoring{event_number}', label="Monitoring", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "monitoring")))
 
                 triggered_label = "Triggered"
                 if "last_triggered" in ret["state"][e.name]:
                     triggered_label = triggered_label + "\n" + ret["state"][e.name]["last_triggered"]
                     triggered_label = triggered_label + "\n" + ret["state"][e.name]["triggered_label"]
-                layer.add_node(pydot.Node("Triggered", label=triggered_label, fontname="Courier", fontsize="10pt", color=layer_color(e.state, "triggered")))
+                layer.add_node(pydot.Node(f'Triggered{event_number}', label=triggered_label, fontname="Courier", fontsize="10pt", color=layer_color(e.state, "triggered")))
                 
-                layer.add_node(pydot.Node("Paused", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "paused")))
+                layer.add_node(pydot.Node(f'Paused{event_number}', label="Paused", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "paused")))
 
-                layer.add_edge(pydot.Edge("Setup", "Monitoring"))
-                layer.add_edge(pydot.Edge("Monitoring", "Triggered"))
-                layer.add_edge(pydot.Edge("Paused", "Monitoring"))
+                layer.add_edge(pydot.Edge(f'Setup{event_number}', f'Monitoring{event_number}'))
+                layer.add_edge(pydot.Edge(f'Monitoring{event_number}', f'Triggered{event_number}'))
+                layer.add_edge(pydot.Edge(f'Paused{event_number}', f'Monitoring{event_number}'))
             
             actions = []
             for a in e.actions:
@@ -296,13 +301,17 @@ class eventManager(Sensor, Reconfigurable):
                     if "when" in a_ret:
                         a_label = a_label + f'\n{a_ret["when"]}'
                         a_font = "Courier bold"
-                    action_node= pydot.Node(f'a{len(actions)}', label=a_label, fontname=a_font, fontsize="10pt", color=layer_color(e.state, "actioning"))
+                    action_node= pydot.Node(f'a{event_number}{len(actions)}', label=a_label, fontname=a_font, fontsize="10pt", color=layer_color(e.state, "actioning"))
                     layer.add_node(action_node)
-                    layer.add_edge(pydot.Edge("Triggered", f'a{len(actions)}'))
-                    layer.add_edge(pydot.Edge(f'a{len(actions)}', "Paused"))
+                    layer.add_edge(pydot.Edge(f'Triggered{event_number}', f'a{event_number}{len(actions)}'))
+                    layer.add_edge(pydot.Edge(f'a{event_number}{len(actions)}', f'Paused{event_number}'))
 
             ret["state"][e.name]["actions"] = actions
             if include_dot:
+                if len(e.actions) == 0:
+                    # connect straight to Paused if no configured actions
+                    layer.add_edge(pydot.Edge(f'Triggered{event_number}', f'Paused{event_number}'))
+
                 graph.add_subgraph(layer)
 
         if from_dm_from_extra(extra) and len(ret["state"]) == 0:
