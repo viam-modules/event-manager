@@ -369,8 +369,6 @@ The following can variables be included enclosed in```<<>>``` (for example ```<<
 
 * event_name: The **name** of the event that was triggered.
 * triggered_label: If the event was triggered via a computer vision service, this is the label/class that triggered the event.
-* triggered_resource: The name of the resource that triggered the event.
-* time: Passed as a function call with the first argument being a [Python strftime](https://www.programiz.com/python-programming/datetime/strftime) time format, and the second argument being the number of seconds offset from the time of the event (default 0). A formatted time string will be returned.
 
 "sms_match" -  if a phone number that was notified when this event was triggered sends an SMS response and the response matches "sms_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.

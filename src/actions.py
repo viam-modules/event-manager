@@ -44,8 +44,13 @@ async def do_action(event:Event, action:Action, resources):
 
     method = getattr(resource, action.method)
 
-    # At some point we might want other things to be template variables, for now just label
-    action.payload = action.payload.replace('<<label>>', event.triggered_label)
-    await method(json.loads(action.payload.replace("'", "\"")))
+    # we don't want to alter action.payload directly as it will be used as a template repeatedly
+    payload = action.payload
+
+    # At some point we might want other things to be template variables, for now just label and event name
+    payload = payload.replace('<<triggered_label>>', event.triggered_label)
+    payload = payload.replace('<<event_name>>', event.name)
+
+    await method(json.loads(payload.replace("'", "\"")))
     action.taken = True
     action.last_taken = time.time()
