@@ -1,5 +1,5 @@
-import notifications
-import rules
+from notifications import NotificationEmail, NotificationSMS, NotificationWebhookGET
+from rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime
 from actionClass import Action
 
 from viam.logging import getLogger
@@ -18,8 +18,8 @@ class Event():
     last_triggered: float = 0
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
-    rules: list[rules.RuleDetector|rules.RuleClassifier|rules.RuleTime]
-    notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
+    rules: list[RuleDetector|RuleClassifier|RuleTime]
+    notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET]
     actions: list[Action]
     actions_paused: bool = False
     triggered_label: str = ""
@@ -41,27 +41,27 @@ class Event():
                                     "preset": item["preset"],
                                     "to": s
                                 }
-                                self.__dict__[key].append(notifications.NotificationSMS(**sms))
+                                self.__dict__[key].append(NotificationSMS(**sms))
                         elif item["type"] == "email":
                             for s in item["to"]:
                                 email = {
                                     "preset": item["preset"],
                                     "to": s
                                 }
-                                self.__dict__[key].append(notifications.NotificationEmail(**email))
+                                self.__dict__[key].append(NotificationEmail(**email))
                         elif item["type"] == "webhook_get":
-                            self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
+                            self.__dict__[key].append(NotificationWebhookGET(**item))
                 elif key == "rules":
                     self.__dict__["rules"] = []
                     for item in value:
                         if item["type"] == "detection":
-                            self.__dict__[key].append(rules.RuleDetector(**item))
+                            self.__dict__[key].append(RuleDetector(**item))
                         elif item["type"] == "classification":
-                            self.__dict__[key].append(rules.RuleClassifier(**item))
+                            self.__dict__[key].append(RuleClassifier(**item))
                         elif item["type"] == "time":
-                            self.__dict__[key].append(rules.RuleTime(**item))
+                            self.__dict__[key].append(RuleTime(**item))
                         elif item["type"] == "tracker":
-                            self.__dict__[key].append(rules.RuleTracker(**item))
+                            self.__dict__[key].append(RuleTracker(**item))
                 elif key == "modes":
                     self.__dict__["modes"] = []
                     for item in value:
