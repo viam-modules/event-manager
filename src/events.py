@@ -1,6 +1,6 @@
-import notifications
-from rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime
-from actionClass import Action
+from . import notifications
+from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime
+from .actionClass import Action
 
 from viam.logging import getLogger
 LOGGER = getLogger(__name__)
