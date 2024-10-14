@@ -20,11 +20,7 @@ from viam.rpc.dial import DialOptions
 
 from viam.logging import getLogger
 
-import events
-import rules
-import notifications
-import triggered
-import actions
+from . import events, rules, notifications, triggered, actions
 
 import time
 import asyncio
