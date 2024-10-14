@@ -20,7 +20,7 @@ from viam.rpc.dial import DialOptions
 
 from viam.logging import getLogger
 
-from events import Event
+import events
 import rules
 import notifications
 import triggered
@@ -109,7 +109,7 @@ class eventManager(Sensor, Reconfigurable):
         dict_events = attributes.get("events")
         if dict_events is not None:
             for e in dict_events:
-                event = Event(**e)
+                event = events.Event(**e)
                 event.state = "setup"
                 self.event_states.append(event)
 
@@ -146,11 +146,11 @@ class eventManager(Sensor, Reconfigurable):
         
         self.app_client = await self.viam_connect()
 
-        event: Event
+        event: events.Event
         for event in self.event_states:
             asyncio.ensure_future(self.event_check_loop(event))
     
-    async def event_check_loop(self, event:Event):
+    async def event_check_loop(self, event:events.Event):
         LOGGER.info("Starting event check loop for " + event.name)
         while self.run_loop:
             if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
