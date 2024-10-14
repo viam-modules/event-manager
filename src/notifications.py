@@ -1,4 +1,3 @@
-
 import urllib
 from PIL import Image
 from viam.logging import getLogger
