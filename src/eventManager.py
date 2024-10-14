@@ -22,7 +22,7 @@ from viam.logging import getLogger
 
 import events
 import rules
-import notifications.notifications
+import notifications
 import triggered
 import actions
 

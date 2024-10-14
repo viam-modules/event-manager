@@ -1,4 +1,4 @@
-from notifications import notifications
+import notifications
 from rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime
 from actionClass import Action
 
