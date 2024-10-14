@@ -6,12 +6,8 @@
   "description": "Eventing, notifications, and actioning for Computer Vision events",
   "models": [
     {
-      "api": "rdk:service:generic",
-      "model": "viam:event-manager:eventing"
-    },
-    {
       "api": "rdk:component:sensor",
-      "model": "viam:event-manager:event-status"
+      "model": "viam:event-manager:eventing"
     }
   ],
   "entrypoint": "run.sh"
