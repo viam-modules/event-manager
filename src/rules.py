@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime
 from typing import cast
 from PIL import Image
-from . import logic
-from . import triggered
+import logic
+import triggered
 
 from viam.components.camera import Camera
 from viam.media.video import ViamImage

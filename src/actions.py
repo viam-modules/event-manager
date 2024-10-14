@@ -8,8 +8,8 @@ from viam.components.generic import Generic as GenericComponent
 from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
 
-from .events import Event
-from .actionClass import Action
+from events import Event
+from actionClass import Action
 
 LOGGER = getLogger(__name__)
 

@@ -1,3 +1,4 @@
 viam-sdk~=0.29.2
 pillow
 pydot~=3.0.2
+pyinstaller~=6.10.0
