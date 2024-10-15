@@ -396,6 +396,27 @@ If *type* is **tracker**, *cameras* (list of configured cameras) must be defined
 
 If *type* is **time**, *ranges* must be defined, which is a list of *start_hour* and *end_hour*, which are integers representing the start hour in UTC.
 
+
+## Building and running
+
+This project is set up to be build with pyinstaller, which can be run by calling:
+
+``` bash
+sh build.sh
+```
+
+To run locally, point to the binary at:
+
+``` bash
+dist/main
+```
+
+To kick on a Linux build for the registry:
+
+``` bash
+viam module build start --version x.x.x
+```
+
 ## Todo
 
 * Support other rule types like sensor readings
