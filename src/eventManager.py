@@ -199,7 +199,11 @@ class eventManager(Sensor, Reconfigurable):
                     continue
 
                 # see if any actions need to be performed
-                sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                sms_message = ""
+                # only poll for SMS if there are actions configured for this event
+                # TODO: only poll if actions are checking for SMS responses
+                if len(event.actions):
+                    sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
                 for action in event.actions:
                     should_action = await actions.eval_action(event, action, sms_message)
                     if should_action:
@@ -207,7 +211,7 @@ class eventManager(Sensor, Reconfigurable):
                             # once we get a valid SMS message, no other actions should be taken
                             event.actions_paused = True
                         await actions.do_action(event, action, self.robot_resources)
-                await asyncio.sleep(.5)
+                await asyncio.sleep(1)
             else:
                 event.state = "paused"
                 # sleep for a bit longer if we know we are not currently checking for this event

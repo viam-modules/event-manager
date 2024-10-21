@@ -12,6 +12,7 @@ class NotificationSMS():
     to: str
     preset: str
     image: Image
+    include_image: bool = True
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -54,11 +55,12 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
 
     notification_args = {"command": "send", "to": notification.to, "preset": notification.preset}
     
-    buffered = BytesIO()
-    notification.image.save(buffered, format="JPEG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("ascii")
-    notification_args["media_base64"] = img_str
-    notification_args["media_mime_type"] =  "image/jpeg"
+    if notification.include_image:
+        buffered = BytesIO()
+        notification.image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("ascii")
+        notification_args["media_base64"] = img_str
+        notification_args["media_mime_type"] =  "image/jpeg"
 
     try:
         res = await notification_resource.do_command(notification_args)

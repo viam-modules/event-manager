@@ -176,7 +176,10 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     "detector": "person_detector"
                 }
             ], 
-            "notifications": [{"type": "sms", "to": ["123-456-7890"], "preset": "alert"}, {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}],
+            "notifications": [
+                    {"type": "sms", "to": ["123-456-7890"], "preset": "alert"},
+                    {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}
+                ],
             "actions": [
                 {   
                     "when_secs": 0, 
@@ -201,7 +204,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     "camera": "tracker1"
                 }
             ], 
-            "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "preset": "alert"}],
+            "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "include_image": false, "preset": "alert"}],
             "actions": [
                 {   
                     "sms_match": "1",
@@ -350,6 +353,8 @@ Notifications types when an event triggers.
 "preset" is a string specifying the name of the preset message to send.
 
 "to" is a list of phone numbers or email addresses.
+
+"include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
 
 ##### actions
 

@@ -40,8 +40,11 @@ async def request_capture(event, resources:dict):
         "async": True
     }
     
-    store_result = await vs.do_command( store_args )
-    return store_result
+    try:
+        store_result = await vs.do_command( store_args )
+        return store_result
+    except Exception as e:
+        LOGGER.error(e)
 
 async def get_triggered_cloud(event_name:str=None, num:int=5, app_client:ViamClient=None):
     filter_args = {}
