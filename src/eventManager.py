@@ -162,6 +162,18 @@ class eventManager(Sensor, Reconfigurable):
                 rule_results = []
                 for rule in event.rules:
                     result = await rules.eval_rule(rule, self.robot_resources)
+                    if result["triggered"] == True:
+                        event.sequence_count_current = event.sequence_count_current + 1
+                        LOGGER.error(event.sequence_count_current)
+                    else:
+                        event.sequence_count_current = 0
+
+                    if event.sequence_count_current< event.trigger_sequence_count:
+                        # don't consider triggered as we've not met the threshold
+                        result["triggered"] = False
+                    else:
+                        # reset sequence count if we are at the sequence count threshold
+                        event.sequence_count_current = 0
                     rule_results.append(result)
 
                 if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:

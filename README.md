@@ -173,7 +173,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     "confidence_pct": 0.6,
                     "class_regex": "Person",                    
                     "camera": "cam1",
-                    "detector": "person_detector"
+                    "detector": "person_detector",
+                    "sequence_count": 2
                 }
             ], 
             "notifications": [
@@ -341,6 +342,14 @@ How often rules are evaluated, best effort.
 
 The [logic gate](https://www.techtarget.com/whatis/definition/logic-gate-AND-OR-XOR-NOT-NAND-NOR-and-XNOR) to use with configured rules.
 For example, if *NOR* was set and there were two rules configured that both evaluated false, the event would trigger.
+
+#### trigger_sequence_count
+
+*integer (default 1)*
+
+How many times in a row an event must be evaluate as true in order to be considered triggered.
+For example, you may want to get 3 detections in a row that it is an unknown person.
+This can help alleviate some false positives.
 
 #### notifications
 

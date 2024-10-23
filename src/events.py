@@ -23,6 +23,8 @@ class Event():
     actions: list[Action]
     actions_paused: bool = False
     triggered_label: str = ""
+    trigger_sequence_count: int = 1
+    sequence_count_current: int = 0
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')
