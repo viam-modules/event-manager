@@ -164,7 +164,6 @@ class eventManager(Sensor, Reconfigurable):
                     result = await rules.eval_rule(rule, self.robot_resources)
                     if result["triggered"] == True:
                         event.sequence_count_current = event.sequence_count_current + 1
-                        LOGGER.error(event.sequence_count_current)
                     else:
                         event.sequence_count_current = 0
 
