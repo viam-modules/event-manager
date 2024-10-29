@@ -159,6 +159,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
         "cam1": {"type": "component", "subtype": "camera"},
         "vcam1": {"type": "component", "subtype": "camera"},
         "tracker1": {"type": "service", "subtype": "vision"},
+        "person_detector": {"type": "service", "subtype": "vision"}
     },
     "events": [
         {
