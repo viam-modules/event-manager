@@ -149,84 +149,87 @@ class eventManager(Sensor, Reconfigurable):
     async def event_check_loop(self, event:events.Event):
         LOGGER.info("Starting event check loop for " + event.name)
         while self.run_loop:
-            if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
-                start_time = datetime.now()
-                event.state = "monitoring"
+            try:
+                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
+                    start_time = datetime.now()
+                    event.state = "monitoring"
 
-                # reset event ad actions before evaluating
-                event.is_triggered = False
-                event.actions_paused = False
-                event.triggered_label = ""
-                actions.flip_action_status(event, False)
+                    # reset event ad actions before evaluating
+                    event.is_triggered = False
+                    event.actions_paused = False
+                    event.triggered_label = ""
+                    actions.flip_action_status(event, False)
 
-                rule_results = []
-                for rule in event.rules:
-                    result = await rules.eval_rule(rule, self.robot_resources)
-                    if result["triggered"] == True:
-                        event.sequence_count_current = event.sequence_count_current + 1
-                    else:
-                        event.sequence_count_current = 0
-
-                    if event.sequence_count_current< event.trigger_sequence_count:
-                        # don't consider triggered as we've not met the threshold
-                        result["triggered"] = False
-                    else:
-                        # reset sequence count if we are at the sequence count threshold
-                        event.sequence_count_current = 0
-                    rule_results.append(result)
-
-                if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
-                    event.is_triggered = True
-                    event.last_triggered = time.time()
-                    event.state = "triggered"
-
-                    rule_index = 0
-                    triggered_image = None
+                    rule_results = []
                     for rule in event.rules:
-                        if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'camera'):
-                            if "image" in rule_results[rule_index]:
-                                triggered_image = rule_results[rule_index]["image"]
-                            if "label" in rule_results[rule_index]:
-                                event.triggered_label = rule_results[rule_index]["label"]
-                            if event.capture_video:
-                                asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
-                        rule_index = rule_index + 1
-                    for n in event.notifications:
-                        if triggered_image != None:
-                            n.image = triggered_image
-                        await notifications.notify(event.name, n, self.robot_resources)
+                        result = await rules.eval_rule(rule, self.robot_resources)
+                        if result["triggered"] == True:
+                            event.sequence_count_current = event.sequence_count_current + 1
+                        else:
+                            event.sequence_count_current = 0
 
-                # try to respect detection_hz as desired speed of detections
-                elapsed = (datetime.now() - start_time).total_seconds()
-                to_wait = (1 / event.detection_hz) - elapsed
-                if to_wait > 0:
-                    await asyncio.sleep(to_wait)
-            elif (event.is_triggered == True) and (event.actions_paused == False):
-                LOGGER.debug("checking for ACTIONS")
-                event.state = "actioning"
+                        if event.sequence_count_current< event.trigger_sequence_count:
+                            # don't consider triggered as we've not met the threshold
+                            result["triggered"] = False
+                        else:
+                            # reset sequence count if we are at the sequence count threshold
+                            event.sequence_count_current = 0
+                        rule_results.append(result)
 
-                if len(event.actions) == 0:
-                    event.actions_paused = True
-                    continue
+                    if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
+                        event.is_triggered = True
+                        event.last_triggered = time.time()
+                        event.state = "triggered"
 
-                # see if any actions need to be performed
-                sms_message = ""
-                # only poll for SMS if there are actions configured for this event
-                # TODO: only poll if actions are checking for SMS responses
-                if len(event.actions):
-                    sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
-                for action in event.actions:
-                    should_action = await actions.eval_action(event, action, sms_message)
-                    if should_action:
-                        if sms_message != "":
-                            # once we get a valid SMS message, no other actions should be taken
-                            event.actions_paused = True
-                        await actions.do_action(event, action, self.robot_resources)
-                await asyncio.sleep(1)
-            else:
-                event.state = "paused"
-                # sleep for a bit longer if we know we are not currently checking for this event
-                await asyncio.sleep(.5)
+                        rule_index = 0
+                        triggered_image = None
+                        for rule in event.rules:
+                            if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'camera'):
+                                if "image" in rule_results[rule_index]:
+                                    triggered_image = rule_results[rule_index]["image"]
+                                if "label" in rule_results[rule_index]:
+                                    event.triggered_label = rule_results[rule_index]["label"]
+                                if event.capture_video:
+                                    asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
+                            rule_index = rule_index + 1
+                        for n in event.notifications:
+                            if triggered_image != None:
+                                n.image = triggered_image
+                            await notifications.notify(event.name, n, self.robot_resources)
+
+                    # try to respect detection_hz as desired speed of detections
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    to_wait = (1 / event.detection_hz) - elapsed
+                    if to_wait > 0:
+                        await asyncio.sleep(to_wait)
+                elif (event.is_triggered == True) and (event.actions_paused == False):
+                    LOGGER.debug("checking for ACTIONS")
+                    event.state = "actioning"
+
+                    if len(event.actions) == 0:
+                        event.actions_paused = True
+                        continue
+
+                    # see if any actions need to be performed
+                    sms_message = ""
+                    # only poll for SMS if there are actions configured for this event
+                    # TODO: only poll if actions are checking for SMS responses
+                    if len(event.actions):
+                        sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                    for action in event.actions:
+                        should_action = await actions.eval_action(event, action, sms_message)
+                        if should_action:
+                            if sms_message != "":
+                                # once we get a valid SMS message, no other actions should be taken
+                                event.actions_paused = True
+                            await actions.do_action(event, action, self.robot_resources)
+                    await asyncio.sleep(1)
+                else:
+                    event.state = "paused"
+                    # sleep for a bit longer if we know we are not currently checking for this event
+                    await asyncio.sleep(.5)
+            except Exception as e:
+                LOGGER.error(f'Error in event check loop: {e}')
     
     async def do_command(
                 self,
