@@ -1,5 +1,5 @@
 from . import notifications
-from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime
+from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
 
 from viam.logging import getLogger
@@ -18,7 +18,7 @@ class Event():
     last_triggered: float = 0
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
-    rules: list[RuleDetector|RuleClassifier|RuleTime]
+    rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     actions: list[Action]
     actions_paused: bool = False
@@ -64,6 +64,8 @@ class Event():
                             self.__dict__[key].append(RuleTime(**item))
                         elif item["type"] == "tracker":
                             self.__dict__[key].append(RuleTracker(**item))
+                        elif item["type"] == "call":
+                            self.__dict__[key].append(RuleCall(**item))
                 elif key == "modes":
                     self.__dict__["modes"] = []
                     for item in value:

@@ -61,14 +61,6 @@ class eventManager(Sensor, Reconfigurable):
     @classmethod
     def validate(cls, config: ModuleConfig):
         deps = []
-
-        api_key = config.attributes.fields["app_api_key"].string_value or ''
-        if api_key == '':
-            raise Exception("An app_api_key must be defined")
-
-        api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
-        if api_key_id == '':
-            raise Exception("An app_api_key_id must be defined")
         
         attributes = struct_to_dict(config.attributes)
 
@@ -140,7 +132,8 @@ class eventManager(Sensor, Reconfigurable):
     async def manage_events(self):
         LOGGER.info("Starting event manager")
         
-        self.app_client = await self.viam_connect()
+        if (self.api_key != '' and self.api_key_id != ''):
+            self.app_client = await self.viam_connect()
 
         event: events.Event
         for event in self.event_states:
