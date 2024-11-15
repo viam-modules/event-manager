@@ -49,6 +49,8 @@ class RuleTracker():
     camera: str
     tracker: str
     inverse_pause_secs: int
+    pause_on_known_secs: int
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -80,7 +82,7 @@ class RuleTime():
                 self.__dict__[key] = value
 
 async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCall, resources):
-    response = { "triggered" : False, "image": None, "label": None }
+    response = { "triggered" : False, "image": None, "label": None, "known_person_seen": False }
     match rule.type:
         case "time":
             curr_time = datetime.now()
@@ -111,7 +113,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
         case "tracker":
             tracker = _get_vision_service(rule.tracker, resources)
             all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
-            approved = []
+            approved_status = []
             # we need to get approved list to see if there
             # are detections of any unknown people without known people
             known = await tracker.do_command({"list": True})
@@ -120,13 +122,14 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 for k in known["list"]:
                     if (k["label"] == d.class_name) and (k["authorized"] == True):
                         authorized = True
-                approved.append(authorized)
+                        response["known_person_seen"] = True
+                approved_status.append(authorized)
                 if not authorized:
                     im = viam_to_pil_image(all.image)
                     response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
                     response["label"] = d.class_name
-            LOGGER.debug(approved)
-            if len(approved) > 0 and logic.NOR(approved):
+            LOGGER.debug(approved_status)
+            if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
                 response["triggered"] = True
         case "call":

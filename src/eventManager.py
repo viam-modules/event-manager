@@ -177,9 +177,16 @@ class eventManager(Sensor, Reconfigurable):
                             event.paused_until = time.time() + rule.inverse_pause_secs
                             event.state = "paused"
                             event.pause_reason = f"{rule.type} rule inverse pause for {rule.inverse_pause_secs} secs"
+                            break
+                        if hasattr(rule, 'pause_on_known_secs') and rule.pause_on_known_secs > 0 and result["known_person_seen"]:
+                            event.paused_until = time.time() + rule.pause_on_known_secs
+                            event.state = "paused"
+                            event.pause_reason = "known person"
+                            break                       
+                        
                         rule_results.append(result)
 
-                    if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
+                    if (event.state != "paused") and (rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True):
                         event.is_triggered = True
                         event.last_triggered = time.time()
                         event.state = "triggered"
