@@ -16,6 +16,7 @@ LOGGER = getLogger(__name__)
 class TimeRange():
     start_hour: int
     end_hour: int
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -26,6 +27,8 @@ class RuleDetector():
     detector: str
     class_regex: str
     confidence_pct: float
+    inverse_pause_secs: int
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -35,6 +38,8 @@ class RuleClassifier():
     classifier: str
     class_regex: str
     confidence_pct: float
+    inverse_pause_secs: int
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -43,6 +48,7 @@ class RuleTracker():
     type: str="tracker"
     camera: str
     tracker: str
+    inverse_pause_secs: int
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
@@ -132,6 +138,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                         LOGGER.error(f"data not found in path {rule.result_path}")
                         return response
 
+                LOGGER.debug(call_res)
                 if rule.result_function:
                     match rule.result_function:
                         case "len":
@@ -161,7 +168,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                         triggered = hasattr(call_res, rule.result_value)
 
                 response["triggered"] = triggered
-                LOGGER.error(f"call rule eval to {triggered}")
+                LOGGER.debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
             except Exception as e:
                 LOGGER.error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
     return response

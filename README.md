@@ -2,7 +2,7 @@
 
 *event-manager* is a Viam module that provides logic and eventing capabilities using the sensor component API through the viam:event-manager:eventing model.
 
-The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
+The event manager can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
 The event manager can be configured with rules to evaluate, based on:
 
@@ -18,7 +18,7 @@ When a rule is triggers, configured notification actions can occur of type:
 * Email
 * GET push notification
 
-Video of any triggered event is can be captured and stored in Viam data management via a video storage camera (configured as a dependency).
+Video of any triggered event can be captured and stored in Viam data management via a video storage camera (configured as a dependency).
 
 Actions can also be configured that occur either:
 

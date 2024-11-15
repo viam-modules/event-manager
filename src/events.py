@@ -16,6 +16,8 @@ class Event():
     notification_settings: list
     is_triggered: bool = False
     last_triggered: float = 0
+    paused_until: float = 0
+    pause_reason: str = ""
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
     rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
