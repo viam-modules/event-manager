@@ -47,6 +47,10 @@ await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night"
 
 await em.do_command({"delete_triggered": {"id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX", "location_id": "dsafadad", "organization_id": "adasdsadasw"}}) # delete triggered event based on ID
 
+await em.do_command({"trigger_event": {"event": "Unexpected person"}}) # manually trigger the "Unexpected person" event
+await em.do_command({"pause_triggered": {"event": "Unexpected person"}}) # pause actioning on the triggered "Unexpected person" event
+await em.do_command({"respond_triggered": {"event": "Unexpected person", "response": "2"}}) # respond "2" to the triggered "Unexpected person" event
+
 ```
 
 #### get_triggered
@@ -105,6 +109,37 @@ Location ID for the event to delete.
 
 Organization ID for the event to delete.
 
+#### trigger_event
+
+Manually trigger an event by event name.
+
+```json
+{
+    "event": "<name of event>"
+}
+```
+
+#### pause_triggered
+
+Pause a actioning on a triggered event by event name for the remainder of [pause_alerting_on_event_secs](#pause_alerting_on_event_secs).
+
+```json
+{
+    "event": "<name of event>"
+}
+```
+
+#### respond_triggered
+
+Respond to a triggered event by event name with response text.
+
+```json
+{
+    "event": "<name of event>",
+    "response": "<response text>"
+}
+```
+
 ### get_readings()
 
 get_readings() JSON returns the current state of events:
@@ -122,7 +157,7 @@ get_readings() JSON returns the current state of events:
                 {
                     "resource": "kasa_plug_1",
                     "method": "do_command",
-                    "sms_match": "2",
+                    "response_match": "2",
                     "when": "2024-10-04T19:59:46Z",
                     "payload": "{'action' : 'toggle_on'}"
                 }
@@ -236,23 +271,24 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "include_image": false, "preset": "alert"}],
+            "action_sms_response_active": true,
             "actions": [
                 {   
-                    "sms_match": "1",
+                    "response_match": "1",
                     "when_secs": 60, 
                     "resource": "kasa_plug_2",
                     "method": "do_command",
                     "payload": "{'action' : 'toggle_on'}"
                 },
                 {   
-                    "sms_match": "(2|3)",
+                    "response_match": "(2|3)",
                     "when_secs": -1, 
                     "resource": "kasa_plug_2",
                     "method": "do_command",
                     "payload": "{'action' : 'toggle_off'}"
                 },
                 {   
-                    "sms_match": "2",
+                    "response_match": "2",
                     "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
@@ -397,7 +433,16 @@ Notifications types when an event triggers.
 
 "include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
 
-##### actions
+#### action_sms_response_active
+
+*bool*
+
+Defaults to false.
+Check for action responses via SMS message responses.
+This is relevant if SMS notifications were sent.
+If a phone number that was notified when this event was triggered sends an SMS response and the response matches "response_match" (regex), then matching actions will be taken.
+
+#### actions
 
 *list*
 
@@ -416,12 +461,12 @@ The following can variables be included enclosed in```<<>>``` (for example ```<<
 * event_name: The **name** of the event that was triggered.
 * triggered_label: If the event was triggered via a computer vision service, this is the label/class that triggered the event.
 
-"sms_match" -  if a phone number that was notified when this event was triggered sends an SMS response and the response matches "sms_match" (regex), then this and any other matching actions will be taken.
+"response_match" -  If a response is sent via doCommand (or via SMS response, if [action_sms_response_active](#action_sms_response_active) is active) that matches "response_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.
 
 "when_secs" - How many seconds after the event triggers should the action occur.
 If not specified or set to 0, will happen immediately.
-If set to -1, will not happen unless sms_match causes it to occur.
+If set to -1, will not happen unless response_match causes it to occur.
 
 #### rules
 
