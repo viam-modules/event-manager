@@ -41,9 +41,9 @@ class eventManager(Sensor, Reconfigurable):
     
     name: str
     mode: Modes = "inactive"
-    mode_overridden = str
-    mode_override_until = None
-    app_client : None
+    mode_overridden: str = ""
+    mode_override_until: None
+    app_client: None
     api_key_id: str
     api_key: str
     part_id: str
@@ -240,7 +240,7 @@ class eventManager(Sensor, Reconfigurable):
                     await asyncio.sleep(.5)
 
                 # check if mode override is expired
-                if self.mode_overridden and (time.time() >= self.mode_override_until):
+                if self.mode_overridden != "" and (time.time() >= self.mode_override_until):
                     self.mode = self.mode_overridden
                     self.mode_overridden = ""
                     self.mode_override_until = None
