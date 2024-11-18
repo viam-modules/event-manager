@@ -187,6 +187,10 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
 ```json
 {
     "mode": "active",
+    "mode_override": {
+        "mode": "inactive",
+        "until": "2024-11-18T19:05:05Z"
+    },
     "app_api_key": "daifdkaddkdfhshfeasw",
     "app_api_key_id": "weygwegqeyygadydagfd",
     "email_module": "shared-alerting:email",
@@ -305,6 +309,13 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
 *enum active|inactive (default: "inactive")*
 
 Event manager mode, which is used in event evaluation based on configured event [modes](#modes)
+
+### mode_override
+
+*object*
+
+If configured, will override the configured [mode](#mode) with *mode* until the date/time specified in *until* (as an ISO8601 UTC datetime string) is passed.
+This can be used for delayed activation, temporary activation, etc.
 
 ### camera_config
 

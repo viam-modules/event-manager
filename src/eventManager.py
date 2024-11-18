@@ -24,8 +24,8 @@ from . import events, rules, notifications, triggered, actions
 
 import time
 import asyncio
-from datetime import datetime, timezone
-import os
+from datetime import datetime, timezone, timedelta
+import re
 import pydot
 from enum import Enum
 
@@ -41,6 +41,8 @@ class eventManager(Sensor, Reconfigurable):
     
     name: str
     mode: Modes = "inactive"
+    mode_overridden = str
+    mode_override_until = None
     app_client : None
     api_key_id: str
     api_key: str
@@ -86,10 +88,17 @@ class eventManager(Sensor, Reconfigurable):
         self.event_states = []
 
         attributes = struct_to_dict(config.attributes)
+
+        mode = "inactive"
         if attributes.get("mode"):
-            self.mode = attributes.get("mode")
-        else:
-            self.mode = 'inactive'
+            mode = attributes.get("mode")
+
+        if attributes.get("mode_override"):
+            until = iso8601_to_timestamp(attributes["mode_override"]["until"])
+            self.mode_override_until = until
+            self.mode_overridden = mode
+            mode = attributes["mode_override"]["mode"]
+        self.mode = mode
 
         if attributes.get('event_video_capture_padding_secs'):
             self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
@@ -229,6 +238,12 @@ class eventManager(Sensor, Reconfigurable):
                 else:
                     # sleep for a bit longer if we know we are not currently checking for this event
                     await asyncio.sleep(.5)
+
+                # check if mode override is expired
+                if self.mode_overridden and (time.time() >= self.mode_override_until):
+                    self.mode = self.mode_overridden
+                    self.mode_overridden = ""
+                    self.mode_override_until = None
             except Exception as e:
                 LOGGER.error(f'Error in event check loop: {e}')
     
@@ -281,7 +296,7 @@ class eventManager(Sensor, Reconfigurable):
     async def get_readings(
         self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Mapping[str, SensorReading]:
-        ret = { "state": {} }
+        ret = { "state": {}, "mode": self.mode }
         include_dot = False
         graph: pydot.Graph
         if "include_dot" in extra:
@@ -376,3 +391,33 @@ def layer_color (state, state_node):
         return "red"
     else:
         return "black"
+
+def iso8601_to_timestamp(iso8601_string):
+    # Regular expression to match ISO8601 format
+    iso8601_regex = r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$"
+    match = re.match(iso8601_regex, iso8601_string)
+    
+    if not match:
+        raise ValueError("Invalid ISO8601 format")
+
+    year, month, day, hour, minute, second = map(int, match.groups()[:6])
+    microsecond = int(float(match.group(7) or '0') * 1000000)
+    tz_string = match.group(8)
+
+    if tz_string == 'Z':
+        tzinfo = timezone.utc
+    elif tz_string:
+        # Handle timezone offset
+        tz_hours, tz_minutes = map(int, tz_string.replace(':', '')[:-2].split(':'))
+        tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes))
+    else:
+        tzinfo = None  # Naive datetime
+
+    dt = datetime(year, month, day, hour, minute, second, microsecond, tzinfo=tzinfo)
+    
+    # Convert to UTC if it's not already
+    if dt.tzinfo:
+        dt = dt.astimezone(timezone.utc)
+    
+    # Return Unix timestamp
+    return dt.timestamp()
