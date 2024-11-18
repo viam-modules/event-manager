@@ -1,8 +1,8 @@
 # event-manager modular service
 
-*event-manager* is a Viam module that provides eventing capabilities using the sensor component API through the viam:event-manager:eventing model.
+*event-manager* is a Viam module that provides logic and eventing capabilities using the sensor component API through the viam:event-manager:eventing model.
 
-The event manager is can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
+The event manager can be used in conjunction with a mobile app or web app, which provides a user interface for configuring and managing events.
 
 The event manager can be configured with rules to evaluate, based on:
 
@@ -10,6 +10,7 @@ The event manager can be configured with rules to evaluate, based on:
 * Computer vision detections
 * Computer vision classifications
 * Computer vision tracker events (new person seen that is not an approved person)
+* Output from sensors and generic components/services
 
 When a rule is triggers, configured notification actions can occur of type:
 
@@ -17,7 +18,7 @@ When a rule is triggers, configured notification actions can occur of type:
 * Email
 * GET push notification
 
-Video of any triggered event is captured and stored in Viam data management via a video storage camera (configured as a dependency).
+Video of any triggered event can be captured and stored in Viam data management via a video storage camera (configured as a dependency).
 
 Actions can also be configured that occur either:
 
@@ -25,7 +26,7 @@ Actions can also be configured that occur either:
 * Based on an SMS response
 
 Configured actions are methods and payloads on other configured Viam resources.
-Currently only generic components/services and vision services are supported.
+Currently only generic components/services, sensor components, and vision services are supported.
 Example action: An end user that receives an alert SMS can respond responds with '1', which activates a Kasa switch via a component do_command() call.
 
 Triggered events can be queried and deleted with this module.
@@ -133,17 +134,19 @@ get_readings() JSON returns the current state of events:
 
 Note that if Viam data capture is enabled for the Readings() method, tabular data will be captured in this format for any triggered events.
 This is required in order to use the do_command() get_triggered command.
+*app_api_key* and *app_api_key_id* must also be configured for get_triggered to be available.
 
 If "include_dot": true is passed as an "extra" parameter, a [DOT string](https://graphviz.org/doc/info/lang.html) representing a state diagram will be returned with the key "dot".
 
 ## Viam event-manager Service Configuration
 
 The service configuration uses JSON to describe rules around events.
-The following example configures two events:
+The following example configures three events:
 
-* The first triggers when the system is "active" and a configured detector Vision service sees a "Person", sending an SMS and email, and turning on a kasa plug immediately.
-* The second triggers when the system is "active" and a configured tracker Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug in 30 seconds or if an SMS response '1' is received.
-If an SMS reponse of 2 is received, the kasa plug is turned off and the person detected is labeled.  If an SMS response of '3' is received, the kasa switch is turned off.
+* The first triggers when the system is "active" and a configured sensor component gets values of a length greater than 3 at "big.good" within the get_readings() results, sending an email.
+* The second triggers when the system is "active" and a configured detector Vision service sees a "Person", sending an SMS and email, and turning on a kasa plug immediately.
+* The third triggers when the system is "active" and a configured tracker Vision service sees a "new-object-detected", sending an SMS and email, then turning on a kasa plug in 30 seconds or if an SMS response '1' is received.
+If an SMS response of 2 is received, the kasa plug is turned off and the person detected is labeled.  If an SMS response of '3' is received, the kasa switch is turned off.
 Video is captured starting 10 seconds before the event (ending 10 seconds after).
 
 ```json
@@ -159,14 +162,39 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
         "cam1": {"type": "component", "subtype": "camera"},
         "vcam1": {"type": "component", "subtype": "camera"},
         "tracker1": {"type": "service", "subtype": "vision"},
-        "person_detector": {"type": "service", "subtype": "vision"}
+        "person_detector": {"type": "service", "subtype": "vision"},
+        "stuff_sensor": {"type": "component", "subtype": "sensor"}
     },
     "events": [
+        {
+            "name": "more than 3 results",
+            "modes": ["active"],
+            "pause_alerting_on_event_secs": 300,
+            "detection_hz": 1,
+            "trigger_sequence_count": 2,
+            "rule_logic_type": "AND",
+            "rules": [
+                {
+                    "type": "call",
+                    "resource": "stuff_sensor",
+                    "method": "get_readings",
+                    "result_path": "big.good",
+                    "result_function": "len",
+                    "result_operator": "gt",
+                    "result_value": 3,
+                    "inverse_pause_secs": 900
+                }
+            ], 
+            "notifications": [
+                    {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}
+                ]
+        },
         {
             "name": "a person camera 1",
             "modes": ["active"],
             "pause_alerting_on_event_secs": 300,
             "detection_hz": 5,
+            "trigger_sequence_count": 2,
             "rule_logic_type": "AND",
             "rules": [
                 {
@@ -174,8 +202,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     "confidence_pct": 0.6,
                     "class_regex": "Person",                    
                     "camera": "cam1",
-                    "detector": "person_detector",
-                    "sequence_count": 2
+                    "detector": "person_detector"
                 }
             ], 
             "notifications": [
@@ -203,7 +230,9 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
             "rules": [
                 {
                     "type": "tracker",
-                    "camera": "tracker1"
+                    "camera": "cam1",
+                    "tracker": "cam1",
+                    "pause_on_known_secs": 900
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "include_image": false, "preset": "alert"}],
@@ -263,15 +292,17 @@ The key is the name of the configured resource, with object containing:
 
 ### app_api_key
 
-*string (required)*
+*string (optional)*
 
-Used to interface with Viam data management for triggered event management
+Used to interface with Viam data management for triggered event management.
+Required if using [do_command](#do_command) functionality.
 
 ### app_api_key_id
 
-*string (required)*
+*string (optional)*
 
-Used to interface with Viam data management for triggered event management
+Used to interface with Viam data management for triggered event management.
+Required if using [do_command](#do_command) functionality.
 
 ### email_module
 
@@ -373,7 +404,7 @@ Notifications types when an event triggers.
 A list of objects containing:
 
 "resource" - The name of a configured action resource.
-Currently only "generic" components and services, as well as vision services are supported.
+Currently only "generic" components and services, sensor components, and vision services are supported.
 
 "method" - The resource method to call
 
@@ -403,14 +434,25 @@ Any number of rules can be configured for a given event.
 
 *enum detection|classification|tracker|time*
 
-If *type* is **detection**, *camera* (configured cameras included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
 
-If *type* is **classification**, *camera* (configured cameras included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
 
-If *type* is **tracker**, *cameras* (list of configured cameras) must be defined.
+If *type* is **tracker**, a *tracker* vision service, and a *camera* (a configured camera included in *resources*) must be defined. *pause_on_known_secs* may be specified, which is the number of seconds to pause event evaluation if a known person is seen.
 
 If *type* is **time**, *ranges* must be defined, which is a list of *start_hour* and *end_hour*, which are integers representing the start hour in UTC.
 
+If *type* is **call**, a *resource* configured in [resources](#resources) must be specified (currently generic components/services, vision services, and sensor components are supported), as well as the following other parameters:
+
+| Key | Type | Inclusion | Description |
+| ---- | ---- | --------- | ----------- |
+| `method` | string | **Required** |  The method name to call against the configured resource. |
+| `payload` | string | **Required** |  Optional JSON payload to pass to the specified method. |
+| `result_path` | string | Optional |  The path, in javascript dot notation, of the property to access. |
+| `result_function` | string | Optional | A python function to call on the result.  Currently supported: len, any |
+| `result_operator` | string | **Required** | A operator to evaluate against the result.  Currently supported: eq, ne, lt, lte, gt, gte, regex, in, hasattr. |
+| `result_value` | string | **Required** | The value to use in the operator evaluation. |
+| `inverse_pause_secs` | string | Optional | A duration to pause event evaluation if the result evaluates to false. |
 
 ## Building and running
 

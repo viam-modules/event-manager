@@ -65,7 +65,7 @@ async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|
     try:
         res = await notification_resource.do_command(notification_args)
         if "error" in res:
-            LOGGER.error(f"Error sending {notification.type}: {res["error"]}")
+            LOGGER.error(f"Error sending {notification.type}: {res['error']}")
     except Exception as e:
         LOGGER.error(f'Unexpected error, notification not sent {e}')
         

@@ -5,6 +5,8 @@ def OR(list):
   return False
 
 def AND(list):
+  if len(list) == 0:
+    return False
   result = True
   for item in list:
     if item == False:

@@ -47,57 +47,48 @@ async def request_capture(event, resources:dict):
         LOGGER.error(e)
 
 async def get_triggered_cloud(event_name:str=None, num:int=5, app_client:ViamClient=None):
-    filter_args = {}
-    matched = []
-    matched_index_by_dt = {}
+    if (app_client): 
+        filter_args = {}
+        matched = []
+        matched_index_by_dt = {}
 
-    # first get recent tabular data, as this is the "data of record"
-    # TODO: currently there is an assumption that no other tabular data is being stored.  Improve this.
-    tabular_data = await app_client.data_client.tabular_data_by_filter(filter=Filter(**filter_args), limit=100, sort_order=Order.ORDER_DESCENDING)
-    for tabluar in tabular_data[0]:
-        state = tabluar.data["readings"]["state"]
-        for reading in state:
-            if event_name == None or event_name == reading:
-                matched_index_by_dt[state[reading]["last_triggered"]] = len(matched)
-                matched.append({"event": reading, "time": state[reading]["last_triggered"],
-                                "location_id": tabluar.metadata.location_id, "organization_id": tabluar.metadata.organization_id })
+        # first get recent tabular data, as this is the "data of record"
+        # TODO: currently there is an assumption that no other tabular data is being stored.  Improve this.
+        tabular_data = await app_client.data_client.tabular_data_by_filter(filter=Filter(**filter_args), limit=100, sort_order=Order.ORDER_DESCENDING)
+        for tabluar in tabular_data[0]:
+            state = tabluar.data["readings"]["state"]
+            for reading in state:
+                if event_name == None or event_name == reading:
+                    matched_index_by_dt[state[reading]["last_triggered"]] = len(matched)
+                    matched.append({"event": reading, "time": state[reading]["last_triggered"],
+                                    "location_id": tabluar.metadata.location_id, "organization_id": tabluar.metadata.organization_id })
+                if len(matched) == num:
+                    break
             if len(matched) == num:
                 break
-        if len(matched) == num:
-            break
 
-    # now try to match any videos based on event timestamp
-    videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=Order.ORDER_DESCENDING)
-    for video in videos[0]:
-        LOGGER.debug(video.metadata)
-        spl = video.metadata.file_name.split('--')
-        if len(spl) > 3:
-            vtime = datetime.fromtimestamp( int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
-            if vtime in matched_index_by_dt:
-                matched[matched_index_by_dt[vtime]]["video_id"] = video.metadata.id
-    return matched
+        # now try to match any videos based on event timestamp
+        videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=Order.ORDER_DESCENDING)
+        for video in videos[0]:
+            LOGGER.debug(video.metadata)
+            spl = video.metadata.file_name.split('--')
+            if len(spl) > 3:
+                vtime = datetime.fromtimestamp( int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
+                if vtime in matched_index_by_dt:
+                    matched[matched_index_by_dt[vtime]]["video_id"] = video.metadata.id
+        return matched
+    else:
+        return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
 
 # deletes video from the cloud
-async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:str=None, app_client:ViamClient=None):    
-    resp = await app_client.data_client.delete_binary_data_by_ids(binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)])
-    return resp
-
+async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:str=None, app_client:ViamClient=None):
+    if (app_client): 
+        resp = await app_client.data_client.delete_binary_data_by_ids(binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)])
+        return resp
+    else:
+        return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
 def _name_clean(string):
     return string.replace(' ','_')
-
-def _create_match_pattern(camera:str=None, event_name:str=None, id:str=None):
-    pattern = '.*_SAVCAM--'
-    if event_name != None:
-        pattern = pattern + _name_clean(event_name) + "--"
-    else:
-        pattern = pattern + ".*--"
-    if camera != None:
-        pattern = pattern + camera + "--.*\\.mp4"
-    else:
-        pattern = pattern + ".*\\.mp4"
-    if id != None:
-        pattern = id
-    return pattern
 
 def _label(event_name, cam_name, last_triggered):
     return _name_clean(f"SAVCAM--{event_name}--{cam_name}--{str(last_triggered)}")

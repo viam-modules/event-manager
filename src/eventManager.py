@@ -62,14 +62,6 @@ class eventManager(Sensor, Reconfigurable):
     def validate(cls, config: ModuleConfig):
         deps = []
 
-        api_key = config.attributes.fields["app_api_key"].string_value or ''
-        if api_key == '':
-            raise Exception("An app_api_key must be defined")
-
-        api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
-        if api_key_id == '':
-            raise Exception("An app_api_key_id must be defined")
-        
         attributes = struct_to_dict(config.attributes)
 
         resources = attributes.get("resources")
@@ -87,7 +79,7 @@ class eventManager(Sensor, Reconfigurable):
     def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         # setting this to false ensures that if the event loop is currently running, it will stop
         self.run_loop = False
-
+        
         self.name = config.name
 
         # reset event states
@@ -140,7 +132,8 @@ class eventManager(Sensor, Reconfigurable):
     async def manage_events(self):
         LOGGER.info("Starting event manager")
         
-        self.app_client = await self.viam_connect()
+        if (self.api_key != '' and self.api_key_id != ''):
+            self.app_client = await self.viam_connect()
 
         event: events.Event
         for event in self.event_states:
@@ -157,11 +150,14 @@ class eventManager(Sensor, Reconfigurable):
                     # reset event ad actions before evaluating
                     event.is_triggered = False
                     event.actions_paused = False
+                    event.pause_reason = ""
+
                     event.triggered_label = ""
                     actions.flip_action_status(event, False)
 
                     rule_results = []
                     for rule in event.rules:
+                        LOGGER.debug(rule)
                         result = await rules.eval_rule(rule, self.robot_resources)
                         if result["triggered"] == True:
                             event.sequence_count_current = event.sequence_count_current + 1
@@ -174,15 +170,30 @@ class eventManager(Sensor, Reconfigurable):
                         else:
                             # reset sequence count if we are at the sequence count threshold
                             event.sequence_count_current = 0
+
+                        # rule settings can determine if the event loop should be paused on
+                        # non-triggered events
+                        if hasattr(rule, 'inverse_pause_secs') and rule.inverse_pause_secs > 0 and not result["triggered"]:
+                            event.paused_until = time.time() + rule.inverse_pause_secs
+                            event.state = "paused"
+                            event.pause_reason = f"{rule.type} rule inverse pause for {rule.inverse_pause_secs} secs"
+                            break
+                        if hasattr(rule, 'pause_on_known_secs') and rule.pause_on_known_secs > 0 and result["known_person_seen"]:
+                            event.paused_until = time.time() + rule.pause_on_known_secs
+                            event.state = "paused"
+                            event.pause_reason = "known person"
+                            break                       
+                        
                         rule_results.append(result)
 
-                    if rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True:
+                    if (event.state != "paused") and (rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True):
                         event.is_triggered = True
                         event.last_triggered = time.time()
                         event.state = "triggered"
 
                         rule_index = 0
                         triggered_image = None
+                        # not all rules consider or capture images and labels, check if we have them
                         for rule in event.rules:
                             if rule_results[rule_index]['triggered'] == True and hasattr(rule, 'camera'):
                                 if "image" in rule_results[rule_index]:
@@ -206,10 +217,6 @@ class eventManager(Sensor, Reconfigurable):
                     LOGGER.debug("checking for ACTIONS")
                     event.state = "actioning"
 
-                    if len(event.actions) == 0:
-                        event.actions_paused = True
-                        continue
-
                     # see if any actions need to be performed
                     sms_message = ""
                     # only poll for SMS if there are actions configured for this event
@@ -222,10 +229,11 @@ class eventManager(Sensor, Reconfigurable):
                             if sms_message != "":
                                 # once we get a valid SMS message, no other actions should be taken
                                 event.actions_paused = True
+                                event.state = "paused"
+                                event.pause_reason = "sms"
                             await actions.do_action(event, action, self.robot_resources)
                     await asyncio.sleep(1)
                 else:
-                    event.state = "paused"
                     # sleep for a bit longer if we know we are not currently checking for this event
                     await asyncio.sleep(.5)
             except Exception as e:
@@ -276,6 +284,9 @@ class eventManager(Sensor, Reconfigurable):
             if e.last_triggered > 0:
                 ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
+
+            if e.pause_reason != "":
+                ret["state"][e.name]["pause_reason"] = e.pause_reason
 
             if include_dot:
                 event_number = event_number + 1
