@@ -48,7 +48,7 @@ class eventManager(Sensor, Reconfigurable):
     robot_resources = {}
     run_loop: bool = True
     dm_sent_status = {}
-    event_states = []
+    event_states: list[events.Event] = []
 
     # Constructor
     @classmethod
@@ -224,14 +224,7 @@ class eventManager(Sensor, Reconfigurable):
                     if len(event.actions):
                         sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
                     for action in event.actions:
-                        should_action = await actions.eval_action(event, action, sms_message)
-                        if should_action:
-                            if sms_message != "":
-                                # once we get a valid SMS message, no other actions should be taken
-                                event.actions_paused = True
-                                event.state = "paused"
-                                event.pause_reason = "sms"
-                            await actions.do_action(event, action, self.robot_resources)
+                        await self.event_action(event, action, sms_message)
                     await asyncio.sleep(1)
                 else:
                     # sleep for a bit longer if we know we are not currently checking for this event
@@ -239,6 +232,16 @@ class eventManager(Sensor, Reconfigurable):
             except Exception as e:
                 LOGGER.error(f'Error in event check loop: {e}')
     
+    async def event_action(self, event, action, message):
+        should_action = await actions.eval_action(event, action, message)
+        if should_action:
+            if message != "":
+                # once we get a valid message, no other actions should be taken
+                event.actions_paused = True
+                event.state = "paused"
+                event.pause_reason = "sms"
+            await actions.do_action(event, action, self.robot_resources)
+
     async def do_command(
                 self,
                 command: Mapping[str, ValueTypes],
@@ -252,6 +255,27 @@ class eventManager(Sensor, Reconfigurable):
                 result["triggered"] = await triggered.get_triggered_cloud(num=args.get("number",5), event_name=args.get("event",None), app_client=self.app_client)
             elif name == "delete_triggered_video":
                 result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
+            elif name == "trigger_event":
+                for e in self.event_states:
+                    if e.name == args.get("event", ""):
+                        e.is_triggered = True
+                        e.last_triggered = time.time()
+                        e.state = "triggered"
+                        result = {"triggered": True}
+            elif name == "pause_triggered":
+                for e in self.event_states:
+                    if (e.name == args.get("event", "")) and e.is_triggered == True:
+                        e.state = "paused"
+                        e.pause_reason = "manual"
+                        e.actions_paused = True
+                        result = {"paused": True}
+            elif name == "respond_triggered":
+                for e in self.event_states:
+                    if (e.name == args.get("event", "")) and e.is_triggered == True:
+                        for action in e.actions:
+                            await self.event_action(e, action, args.get("response", ""))
+                result = {"responded": True}
+
         return result  
     
     async def get_readings(
@@ -315,7 +339,7 @@ class eventManager(Sensor, Reconfigurable):
                     "payload": a.payload,
                     "method": a.method,
                     "taken": a.taken,
-                    "sms_match": a.sms_match
+                    "response_match": a.response_match
                 }
                 if a.taken:
                     a_ret["when"] = datetime.fromtimestamp( int(a.last_taken), timezone.utc).isoformat() + 'Z'

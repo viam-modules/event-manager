@@ -17,9 +17,9 @@ def flip_action_status(event:Event, direction:bool):
 async def eval_action(event:Event, action:Action, sms_message):
     if action.taken:
         return False
-    if (sms_message != "") and (action.sms_match != ""):
-        if re.search(action.sms_match, sms_message):
-            LOGGER.debug(f"matched {action.sms_match}")
+    if (sms_message != "") and (action.response_match != ""):
+        if re.search(action.response_match, sms_message):
+            LOGGER.debug(f"matched {action.response_match}")
             return True
     if action.when_secs != -1:
         if (time.time() - event.last_triggered) >= action.when_secs:

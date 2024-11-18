@@ -3,7 +3,7 @@ class Action():
     method: str
     payload: str
     when_secs: int
-    sms_match: str = ""
+    response_match: str = ""
     taken: bool = False
     last_taken: int
     def __init__(self, **kwargs):
