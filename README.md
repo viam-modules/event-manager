@@ -42,8 +42,8 @@ The event-manager resource implements the [rdk sensor component API](https://git
 Examples:
 
 ```python
-await em.do_command({"get_triggered": {"number": 5}}) # get 5 most recent triggered across all configured events
-await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night"}}) # get 5 most recent triggers for event "Pets out at night"
+await em.do_command({"get_triggered": {"number": 5}, "organization_id": "adasdsadasw"}) # get 5 most recent triggered across all configured events
+await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night", "organization_id": "adasdsadasw"}}) # get 5 most recent triggers for event "Pets out at night"
 
 await em.do_command({"delete_triggered": {"id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX", "location_id": "dsafadad", "organization_id": "adasdsadasw"}}) # delete triggered event based on ID
 
@@ -74,6 +74,10 @@ Return details for triggered events in the following format:
 Note that video_id is the ID of the corresponding video in Viam's Data Management, if one was saved.
 
 The following arguments are supported:
+
+*organization_id* string (required)
+
+Organization ID for the events
 
 *number* integer
 
