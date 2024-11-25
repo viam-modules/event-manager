@@ -22,6 +22,8 @@ class NotificationEmail():
     to: str
     preset: str
     image: Image
+    include_image: bool = False
+    
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
