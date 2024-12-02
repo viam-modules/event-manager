@@ -162,6 +162,8 @@ class eventManager(Sensor, Reconfigurable):
                     event.pause_reason = ""
 
                     event.triggered_label = ""
+                    event.triggered_camera = ""
+
                     actions.flip_action_status(event, False)
 
                     rule_results = []
@@ -209,6 +211,8 @@ class eventManager(Sensor, Reconfigurable):
                                     triggered_image = rule_results[rule_index]["image"]
                                 if "label" in rule_results[rule_index]:
                                     event.triggered_label = rule_results[rule_index]["label"]
+                                if "camera" in rule_results[rule_index]:
+                                    event.triggered_camera = rule_results[rule_index]["camera"]
                                 if event.capture_video:
                                     asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
                             rule_index = rule_index + 1
@@ -323,6 +327,7 @@ class eventManager(Sensor, Reconfigurable):
             if e.last_triggered > 0:
                 ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
+                ret["state"][e.name]["triggered_camera"] = e.triggered_camera
 
             if e.pause_reason != "":
                 ret["state"][e.name]["pause_reason"] = e.pause_reason

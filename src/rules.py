@@ -100,6 +100,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
                     response["label"] = d.class_name
+                    response["camera"] = rule.camera
         case "classification":
             classifier = _get_vision_service(rule.classifier, resources)
             all = await classifier.capture_all_from_camera(rule.camera, return_classifications=True, return_image=True)
@@ -110,6 +111,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
                     response["label"] = c.class_name
+                    response["camera"] = rule.camera
         case "tracker":
             tracker = _get_vision_service(rule.tracker, resources)
             all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
@@ -128,6 +130,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     im = viam_to_pil_image(all.image)
                     response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
                     response["label"] = d.class_name
+                    response["camera"] = rule.camera
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
