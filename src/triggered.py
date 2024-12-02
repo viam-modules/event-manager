@@ -63,8 +63,11 @@ async def get_triggered_cloud(organization_id:str=None, event_name:str=None, num
             for reading in state:
                 if event_name == None or event_name == reading:
                     matched_index_by_dt[state[reading]["last_triggered"]] = len(matched)
+                    triggered_camera = ""
+                    if "triggered_camera" in state[reading]:
+                        triggered_camera = state[reading]["triggered_camera"]
                     matched.append({"event": reading, "time": state[reading]["last_triggered"],
-                                    "location_id": tabular["location_id"], "organization_id": tabular["organization_id"] })
+                                    "location_id": tabular["location_id"], "organization_id": tabular["organization_id"], "trigged_camera": triggered_camera })
                 if len(matched) == num:
                     break
             if len(matched) == num:

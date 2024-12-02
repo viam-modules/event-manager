@@ -65,7 +65,8 @@ Return details for triggered events in the following format:
             "time": 1703172467,
             "video_id": "edc519e5-85fe-42ab-af3c-506fcc827948",
             "organization_id": "72ff9713-adc7-4b15-a95b-2174468bde19",
-            "location_id": "x7ahxaMJEfF"
+            "location_id": "x7ahxaMJEfF",
+            "triggered_camera": "cam1"
         }
     ] 
 }
@@ -86,6 +87,10 @@ Number of triggered to return - default 5
 *event* string
 
 Name of configured event name to return triggered for.  If not specified, will return triggered across all events.
+
+*triggered_camera* string
+
+The name of the camera that triggered the event, if available.
 
 #### delete_triggered_video
 
