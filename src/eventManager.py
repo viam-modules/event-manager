@@ -250,7 +250,8 @@ class eventManager(Sensor, Reconfigurable):
                     self.mode_override_until = None
             except Exception as e:
                 LOGGER.error(f'Error in event check loop: {e}')
-    
+                await asyncio.sleep(1)
+
     async def event_action(self, event, action, message):
         should_action = await actions.eval_action(event, action, message)
         if should_action:
