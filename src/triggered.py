@@ -43,17 +43,20 @@ async def request_capture(event, resources:dict):
     except Exception as e:
         LOGGER.error(e)
 
-async def get_triggered_cloud(organization_id:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
+async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
     if (app_client): 
         filter_args = {}
         matched = []
         matched_index_by_dt = {}
 
         # first get recent tabular data, as this is the "data of record"
-        # TODO: if event name is not matched, we are making a big assumption that there's no other tabular data in this org, improve that
+        # Note: the assumption is made that no other tabular data is being stored for this component
         query = []
+        match = {"component_name": event_manager_name}
         if event_name != None:
+            match[f"data.readings.state.{event_name}" ] = { "$exists": True }
             query.append(bson.encode({ "$match": { f"data.readings.state.{event_name}" : { "$exists": True }}}))
+        query.append(bson.encode({ "$match": match }))
         query.append(bson.encode({ "$sort": { "time_received": -1 } }))
         query.append(bson.encode({ "$limit": num }))
     
@@ -81,7 +84,7 @@ async def get_triggered_cloud(organization_id:str=None, event_name:str=None, num
             if len(spl) > 3:
                 vtime = datetime.fromtimestamp( int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
                 if vtime in matched_index_by_dt:
-                    LOGGER.error(video)
+                    LOGGER.debug(video)
                     matched[matched_index_by_dt[vtime]]["video_id"] = video.metadata.id
         return matched
     else:

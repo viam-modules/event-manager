@@ -134,6 +134,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
+                LOGGER.info(response)
+
                 response["triggered"] = True
         case "call":
             try:
