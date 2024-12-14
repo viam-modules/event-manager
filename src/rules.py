@@ -116,21 +116,23 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             tracker = _get_vision_service(rule.tracker, resources)
             all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
             approved_status = []
-            # we need to get approved list to see if there
-            # are detections of any unknown people without known people
-            known = await tracker.do_command({"list": True})
+
+            current = await tracker.do_command({"list_current": True})
+            
             for d in all.detections:
                 authorized = False
-                for k in known["list"]:
-                    if (k["label"] == d.class_name) and (k["authorized"] == True):
+
+                if d.class_name in current["list_current"]:
+                    k = current["list_current"][d.class_name]
+                    if k["face_id_label"] or k["manual_label"] or k["re_id_label"]:
                         authorized = True
                         response["known_person_seen"] = True
-                approved_status.append(authorized)
-                if not authorized:
-                    im = viam_to_pil_image(all.image)
-                    response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                    response["label"] = d.class_name
-                    response["camera"] = rule.camera
+                    approved_status.append(authorized)
+                    if not authorized:
+                        im = viam_to_pil_image(all.image)
+                        response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
+                        response["label"] = d.class_name
+                        response["camera"] = rule.camera
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
