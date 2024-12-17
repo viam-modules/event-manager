@@ -23,6 +23,7 @@ class Event():
     rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     action_data_management_response: dict = {}
+    check_sms_response: bool = False
     actions: list[Action]
     actions_paused: bool = False
     triggered_label: str = ""

@@ -24,6 +24,7 @@ Actions can also be configured that occur either:
 
 * X seconds after an event is triggered
 * Based on an SMS response
+* Based on readings from data management
 
 Configured actions are methods and payloads on other configured Viam resources.
 Currently only generic components/services, sensor components, and vision services are supported.
@@ -257,6 +258,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     {"type": "sms", "to": ["123-456-7890"], "preset": "alert"},
                     {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}
                 ],
+            "check_sms_response": true,
             "actions": [
                 {   
                     "when_secs": 0, 
@@ -457,6 +459,12 @@ Notifications types when an event triggers.
 "to" is a list of phone numbers or email addresses.
 
 "include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
+
+#### check_sms_response
+
+*boolean - default false*
+
+If set to true, will attempt to see if an SMS response was received via the configured SMS resource.
 
 #### action_data_management_response
 

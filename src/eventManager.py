@@ -232,11 +232,16 @@ class eventManager(Sensor, Reconfigurable):
                     event.state = "actioning"
 
                     # see if any actions need to be performed
-                    data_mgmt_response = ""
-                    if len(event.actions) and "query" in event.action_data_management_response:
-                        data_mgmt_response = await notifications.check_data_mgmt_response(event, self.app_client)
+                    input_response = None
+                    if len(event.actions):
+                        if event.check_sms_response:
+                            input_response = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                        # this implies that if an SMS response and data management response are both configured,
+                        # sms response would take precedence.  Not sure this should always be the case?
+                        if input_response != None and "query" in event.action_data_management_response:
+                            input_response = await notifications.check_data_mgmt_response(event, self.app_client)
                     for action in event.actions:
-                        await self.event_action(event, action, data_mgmt_response)
+                        await self.event_action(event, action, input_response)
                     await asyncio.sleep(1)
                 else:
                     # sleep for a bit longer if we know we are not currently checking for this event
