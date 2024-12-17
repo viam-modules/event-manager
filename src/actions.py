@@ -14,11 +14,11 @@ def flip_action_status(event:Event, direction:bool):
     for action in event.actions:
         action.taken = direction
 
-async def eval_action(event:Event, action:Action, sms_message):
+async def eval_action(event:Event, action:Action, response_message):
     if action.taken:
         return False
-    if (sms_message != "") and (action.response_match != ""):
-        if re.search(action.response_match, sms_message):
+    if (response_message != None) and (action.response_match != ""):
+        if re.search(action.response_match, response_message):
             LOGGER.debug(f"matched {action.response_match}")
             return True
     if action.when_secs != -1:

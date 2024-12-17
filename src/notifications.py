@@ -1,9 +1,13 @@
 import urllib
 from PIL import Image
 from viam.logging import getLogger
+from viam.app.viam_client import ViamClient
+
 import base64
 from io import BytesIO
 from datetime import datetime, timezone
+
+from .resourceUtils import query_data
 
 LOGGER = getLogger(__name__)
 
@@ -83,4 +87,13 @@ async def check_sms_response(notifications:list[NotificationEmail|NotificationSM
             if len(res["messages"]):
                 LOGGER.debug(res)
                 return res["messages"][0]["body"]
+    return ""
+
+async def check_data_mgmt_response(event, app_client:ViamClient=None):
+    # event.notifications, event.last_triggered, event.action_data_management_response,
+    formatted_time = datetime.fromtimestamp(event.last_triggered, timezone.utc).strftime('%d/%m/%Y %H:%M:%S')
+    for n in event.notifications:
+        if n.type == "sms":
+            data_response = await query_data(app_client,event.action_data_management_response, event, n)
+            return data_response
     return ""

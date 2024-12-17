@@ -284,7 +284,12 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "include_image": false, "preset": "alert"}],
-            "action_sms_response_active": true,
+            "action_data_management_response": {
+                "query": [{"$match": {"component_name": "sms","data.readings.from" : { "$eq": "<<notification_to>>" } }}, 
+                            {"$sort": { "time_received": -1 } } ],
+                "organization_id": "abc123456",
+                "result_path": "data.readings.body"
+            },
             "actions": [
                 {   
                     "response_match": "1",

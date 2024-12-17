@@ -10,6 +10,7 @@ from .resourceUtils import call_method
 from viam.services.vision import VisionClient, Detection, Classification, Vision
 from viam.logging import getLogger
 from viam.media.utils.pil import viam_to_pil_image
+from .resourceUtils import get_value_by_dot_notation
 
 LOGGER = getLogger(__name__)
 
@@ -193,17 +194,3 @@ def _get_vision_service(name, resources) -> Vision:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)
     return resources[actual]
-
-def get_value_by_dot_notation(data, path):
-    """Access a nested dictionary value using dot notation."""
-
-    keys = path.split('.')
-    value = data
-
-    for key in keys:
-        if isinstance(value, dict) and key in value:
-            value = value[key]
-        else:
-            return None  # Key not found
-
-    return value

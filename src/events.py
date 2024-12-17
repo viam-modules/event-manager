@@ -22,6 +22,7 @@ class Event():
     rule_logic_type: str = 'AND'
     rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
+    action_data_management_response: dict = {}
     actions: list[Action]
     actions_paused: bool = False
     triggered_label: str = ""

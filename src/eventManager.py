@@ -232,13 +232,11 @@ class eventManager(Sensor, Reconfigurable):
                     event.state = "actioning"
 
                     # see if any actions need to be performed
-                    sms_message = ""
-                    # only poll for SMS if there are actions configured for this event
-                    # TODO: only poll if actions are checking for SMS responses
-                    if len(event.actions):
-                        sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                    data_mgmt_response = ""
+                    if len(event.actions) and "query" in event.action_data_management_response:
+                        data_mgmt_response = await notifications.check_data_mgmt_response(event, self.app_client)
                     for action in event.actions:
-                        await self.event_action(event, action, sms_message)
+                        await self.event_action(event, action, data_mgmt_response)
                     await asyncio.sleep(1)
                 else:
                     # sleep for a bit longer if we know we are not currently checking for this event
