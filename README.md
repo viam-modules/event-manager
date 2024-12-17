@@ -541,6 +541,4 @@ viam module build start --version x.x.x
 
 ## Todo
 
-* Support other rule types like sensor readings
 * Support other types of webhooks
-* Make event subprocesses fault tolerant
