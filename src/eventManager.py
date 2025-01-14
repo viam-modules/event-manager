@@ -49,9 +49,9 @@ class eventManager(Sensor, Reconfigurable):
     api_key: str
     part_id: str
     robot_resources = {}
-    run_loop: bool = True
     dm_sent_status = {}
     event_states: list[events.Event] = []
+    stop_events = []
 
     # Constructor
     @classmethod
@@ -79,10 +79,7 @@ class eventManager(Sensor, Reconfigurable):
         return deps
 
     # Handles attribute reconfiguration
-    def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):
-        # setting this to false ensures that if the event loop is currently running, it will stop
-        self.run_loop = False
-        
+    def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):        
         self.name = config.name
 
         # reset event states
@@ -126,8 +123,10 @@ class eventManager(Sensor, Reconfigurable):
         self.api_key = config.attributes.fields["app_api_key"].string_value or ''
         self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
         
-        # restart event loop
-        self.run_loop = True
+        while self.stop_events:
+            stop_event = self.stop_events.pop()
+            stop_event.set()
+
         asyncio.ensure_future(self.manage_events())
         return
     
@@ -141,17 +140,19 @@ class eventManager(Sensor, Reconfigurable):
     
     async def manage_events(self):
         LOGGER.info("Starting event manager")
-        
+
         if (self.api_key != '' and self.api_key_id != ''):
             self.app_client = await self.viam_connect()
 
         event: events.Event
         for event in self.event_states:
-            asyncio.ensure_future(self.event_check_loop(event))
+            stop_event = asyncio.Event()
+            self.stop_events.append(stop_event)
+            asyncio.create_task(self.event_check_loop(event, stop_event))
     
-    async def event_check_loop(self, event:events.Event):
+    async def event_check_loop(self, event:events.Event, stop_event):
         LOGGER.info("Starting event check loop for " + event.name)
-        while self.run_loop:
+        while not stop_event.is_set():
             try:
                 if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
                     start_time = datetime.now()
@@ -241,8 +242,9 @@ class eventManager(Sensor, Reconfigurable):
                         await self.event_action(event, action, sms_message)
                     await asyncio.sleep(1)
                 else:
-                    # sleep for a bit longer if we know we are not currently checking for this event
+                    # sleep if we know we are not currently checking for this event
                     await asyncio.sleep(.5)
+
 
                 # check if mode override is expired
                 if self.mode_overridden != "" and (time.time() >= self.mode_override_until):
@@ -254,6 +256,8 @@ class eventManager(Sensor, Reconfigurable):
                 LOGGER.error(traceback.print_exc())
                 await asyncio.sleep(1)
 
+        LOGGER.info("Ending event check loop for " + event.name)
+    
     async def event_action(self, event, action, message):
         should_action = await actions.eval_action(event, action, message)
         if should_action:
