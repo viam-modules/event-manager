@@ -114,6 +114,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     response["camera"] = rule.camera
         case "tracker":
             tracker = _get_vision_service(rule.tracker, resources)
+            # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
             all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
             approved_status = []
 
@@ -122,8 +123,13 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             for d in all.detections:
                 authorized = False
 
-                if d.class_name in current["list_current"]:
-                    k = current["list_current"][d.class_name]
+                # NOTE: the class name of a tracker detection that has been labeled now has a label appended to it,
+                #  so it would never ever match a key in current[].  We will therefore strip this label.
+                class_without_label = re.sub(r'\s\(label:\s.*', '', d.class_name)
+                LOGGER.error(class_without_label + " " + str(current["list_current"]))
+
+                if class_without_label in current["list_current"]:
+                    k = current["list_current"][class_without_label]
                     if k["face_id_label"] or k["manual_label"] or k["re_id_label"]:
                         authorized = True
                         response["known_person_seen"] = True
@@ -131,7 +137,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     if not authorized:
                         im = viam_to_pil_image(all.image)
                         response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                        response["label"] = d.class_name
+                        response["label"] = class_without_label
                         response["camera"] = rule.camera
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):

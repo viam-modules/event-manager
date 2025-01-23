@@ -284,7 +284,6 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                 }
             ], 
             "notifications": [{"type": "sms", "to": ["test@somedomain.com"], "include_image": false, "preset": "alert"}],
-            "action_sms_response_active": true,
             "actions": [
                 {   
                     "response_match": "1",
@@ -453,15 +452,6 @@ Notifications types when an event triggers.
 
 "include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
 
-#### action_sms_response_active
-
-*bool*
-
-Defaults to false.
-Check for action responses via SMS message responses.
-This is relevant if SMS notifications were sent.
-If a phone number that was notified when this event was triggered sends an SMS response and the response matches "response_match" (regex), then matching actions will be taken.
-
 #### actions
 
 *list*
@@ -481,7 +471,7 @@ The following can variables be included enclosed in```<<>>``` (for example ```<<
 * event_name: The **name** of the event that was triggered.
 * triggered_label: If the event was triggered via a computer vision service, this is the label/class that triggered the event.
 
-"response_match" -  If a response is sent via doCommand (or via SMS response, if [action_sms_response_active](#action_sms_response_active) is active) that matches "response_match" (regex), then this and any other matching actions will be taken.
+"response_match" -  If a response is sent via doCommand (or via SMS response) that matches "response_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.
 
 "when_secs" - How many seconds after the event triggers should the action occur.
