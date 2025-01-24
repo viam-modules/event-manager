@@ -1,4 +1,5 @@
 import bson
+import asyncio
 from PIL import Image
 from viam.proto.app.data import Filter
 from viam.components.camera import CameraClient, Camera
@@ -17,6 +18,7 @@ LOGGER = getLogger(__name__)
 async def request_capture(event, resources:dict):
     vs = _get_video_store(event.video_capture_resource, resources)
 
+    await asyncio.sleep(event.event_video_capture_padding_secs)
     current_time = datetime.now()
     # go back a second to ensure its not the current second
     current_time = current_time - timedelta(seconds=1)
