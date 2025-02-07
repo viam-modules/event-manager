@@ -125,8 +125,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
 
                 # NOTE: the class name of a tracker detection that has been labeled now has a label appended to it,
                 #  so it would never ever match a key in current[].  We will therefore strip this label.
-                class_without_label = re.sub(r'\s\(label:\s.*', '', d.class_name)
-                LOGGER.debug(class_without_label + " " + str(current["list_current"]))
+                class_without_label = re.sub(r'\s+\(label:\s.*', '', d.class_name)
+                LOGGER.debug(class_without_label + "-" + str(current["list_current"]))
 
                 if class_without_label in current["list_current"]:
                     k = current["list_current"][class_without_label]
