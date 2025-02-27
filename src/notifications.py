@@ -4,6 +4,7 @@ from viam.logging import getLogger
 import base64
 from io import BytesIO
 from datetime import datetime, timezone
+from . import events
 
 LOGGER = getLogger(__name__)
 
@@ -36,26 +37,42 @@ class NotificationWebhookGET():
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
-async def notify(event_name:str, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):
+async def notify(event:events.Event, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):
 
+    notification_args = {"command": "send", "to": notification.to, "preset": notification.preset, 
+                            "template_vars": {
+                                "event_name": event.name, 
+                                "triggered_value": event.triggered_value, 
+                                "triggered_resource": event.triggered_resource
+                            }}
+
+    # create base64 representation of the image if needed
+    if notification.include_image:
+        buffered = BytesIO()
+        notification.image.save(buffered, format="JPEG")
+        img_base64_str = base64.b64encode(buffered.getvalue()).decode("ascii")
+    
     match notification.type:
         case "email":
             if "email_module" in resources:
                 notification_resource = resources['email_module']
+                if notification.include_image:
+                    notification_args["template_vars"]["image_base64"] = img_base64_str
             else:
                 LOGGER.warning("No email module defined, can't send notification email")
                 return
         case "sms":
             if "sms_module" in resources:
                 notification_resource = resources['sms_module']
+                if notification.include_image:
+                    notification_args["media_base64"] = img_base64_str
+                    notification_args["media_mime_type"] =  "image/jpeg"
             else:
                 LOGGER.warning("No SMS module defined, can't send notification SMS")
                 return
         case "webhook_get":
             contents = urllib.request.urlopen(notification.url).read()
             return
-
-    notification_args = {"command": "send", "to": notification.to, "preset": notification.preset}
     
     if notification.include_image:
         buffered = BytesIO()

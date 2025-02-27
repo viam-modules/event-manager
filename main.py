@@ -13,10 +13,10 @@ async def main():
     Resources must be pre-registered. For an example, see the `__init__.py` file.
     """
 
-    Registry.register_resource_creator(Sensor.SUBTYPE, eventManager.MODEL, ResourceCreatorRegistration(eventManager.new, eventManager.validate))
+    Registry.register_resource_creator(Sensor.API, eventManager.MODEL, ResourceCreatorRegistration(eventManager.new, eventManager.validate))
 
     module = Module.from_args()
-    module.add_model_from_registry(Sensor.SUBTYPE, eventManager.MODEL)
+    module.add_model_from_registry(Sensor.API, eventManager.MODEL)
 
     await module.start()
 

@@ -24,8 +24,8 @@ class Event():
     notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
     actions: list[Action]
     actions_paused: bool = False
-    triggered_label: str = ""
-    triggered_camera: str = ""
+    triggered_value = ""
+    triggered_resource: str = ""
     trigger_sequence_count: int = 1
     sequence_count_current: int = 0
 
@@ -78,3 +78,4 @@ class Event():
                         self.__dict__[key].append(Action(**item))
             else:
                 self.__dict__[key] = value
+

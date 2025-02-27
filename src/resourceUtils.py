@@ -33,7 +33,8 @@ async def call_method(resources, name, method, payload, event):
 
         if (event):
         # At some point we might want other things to be template variables, for now just label and event name
-            payload_copy = payload_copy.replace('<<triggered_label>>', event.triggered_label)
+            payload_copy = payload_copy.replace('<<triggered_label>>', event.triggered_value)
+            payload_copy = payload_copy.replace('<<triggered_value>>', event.triggered_value)
             payload_copy = payload_copy.replace('<<event_name>>', event.name)
         
             return await method(json.loads(payload_copy.replace("'", "\"")))

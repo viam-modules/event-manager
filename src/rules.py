@@ -137,8 +137,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     if not authorized:
                         im = viam_to_pil_image(all.image)
                         response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                        response["label"] = class_without_label
-                        response["camera"] = rule.camera
+                        response["value"] = class_without_label
+                        response["resource"] = rule.camera
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
@@ -184,6 +184,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                         triggered = hasattr(call_res, rule.result_value)
 
                 response["triggered"] = triggered
+                response["value"] = call_res
+                response["resource"] = rule.resource
                 LOGGER.debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
             except Exception as e:
                 LOGGER.error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
