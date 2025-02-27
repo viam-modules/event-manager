@@ -1,4 +1,4 @@
-from . import notifications
+from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
 from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
 
@@ -21,7 +21,7 @@ class Event():
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
     rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
-    notifications: list[notifications.NotificationSMS|notifications.NotificationEmail|notifications.NotificationWebhookGET]
+    notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET]
     actions: list[Action]
     actions_paused: bool = False
     triggered_value = ""
@@ -46,16 +46,16 @@ class Event():
                                     "preset": item["preset"],
                                     "to": s
                                 }
-                                self.__dict__[key].append(notifications.NotificationSMS(**sms))
+                                self.__dict__[key].append(NotificationSMS(**sms))
                         elif item["type"] == "email":
                             for s in item["to"]:
                                 email = {
                                     "preset": item["preset"],
                                     "to": s
                                 }
-                                self.__dict__[key].append(notifications.NotificationEmail(**email))
+                                self.__dict__[key].append(NotificationEmail(**email))
                         elif item["type"] == "webhook_get":
-                            self.__dict__[key].append(notifications.NotificationWebhookGET(**item))
+                            self.__dict__[key].append(NotificationWebhookGET(**item))
                 elif key == "rules":
                     self.__dict__["rules"] = []
                     for item in value:

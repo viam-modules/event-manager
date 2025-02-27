@@ -1,41 +1,13 @@
 import urllib
-from PIL import Image
 from viam.logging import getLogger
 import base64
 from io import BytesIO
 from datetime import datetime, timezone
 from . import events
+from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
 
 LOGGER = getLogger(__name__)
 
-class NotificationSMS():
-    type: str="sms"
-    to: str
-    preset: str
-    image: Image
-    include_image: bool = True
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            self.__dict__[key] = value
-
-class NotificationEmail():
-    type: str="email"
-    to: str
-    preset: str
-    image: Image
-    include_image: bool = False
-    
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            self.__dict__[key] = value
-
-class NotificationWebhookGET():
-    type: str="webhook_get"
-    url: str
-    image: Image
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            self.__dict__[key] = value
 
 async def notify(event:events.Event, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):
 
