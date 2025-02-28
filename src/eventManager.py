@@ -158,13 +158,14 @@ class eventManager(Sensor, Reconfigurable):
                     start_time = datetime.now()
                     event.state = "monitoring"
 
-                    # reset event ad actions before evaluating
+                    # reset event and actions before evaluating
                     event.is_triggered = False
                     event.actions_paused = False
                     event.pause_reason = ""
 
-                    event.triggered_value = ""
-                    event.triggered_resource = ""
+                    event.triggered_camera = ""
+                    event.triggered_class = ""
+                    event.triggered_rules = {}
 
                     actions.flip_action_status(event, False)
 
@@ -191,7 +192,7 @@ class eventManager(Sensor, Reconfigurable):
                             event.state = "paused"
                             event.pause_reason = f"{rule.type} rule inverse pause for {rule.inverse_pause_secs} secs"
                             break
-                        if hasattr(rule, 'pause_on_known_secs') and rule.pause_on_known_secs > 0 and result["known_person_seen"]:
+                        if hasattr(rule, 'pause_on_known_secs') and rule.pause_on_known_secs > 0 and "known_person_seen" in result and result["known_person_seen"]:
                             event.paused_until = time.time() + rule.pause_on_known_secs
                             event.state = "paused"
                             event.pause_reason = "known person"
@@ -206,19 +207,25 @@ class eventManager(Sensor, Reconfigurable):
 
                         rule_index = 0
                         triggered_image = None
+                        
                         # not all rules consider or capture images and labels, check if we have them
                         for rule in event.rules:
                             if rule_results[rule_index]['triggered'] == True:
-                                if "value" in rule_results[rule_index]:
-                                    event.triggered_value = rule_results[rule_index]["value"]
-                                if "resource" in rule_results[rule_index]:
-                                    event.triggered_resource = rule_results[rule_index]["resource"]
                                 if hasattr(rule, 'camera'):
+                                    if "value" in rule_results[rule_index]:
+                                        event.triggered_class = rule_results[rule_index]["value"]
+                                    if "resource" in rule_results[rule_index]:
+                                        event.triggered_camera = rule_results[rule_index]["resource"]
                                     if "image" in rule_results[rule_index]:
                                         triggered_image = rule_results[rule_index]["image"]
+                                        # remove once copied because we will use rule_results for state reporting
+                                        del rule_results[rule_index]["image"]
                                     if event.capture_video:
                                         asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
                             rule_index = rule_index + 1
+
+                        event.triggered_rules = rule_results
+
                         for n in event.notifications:
                             if triggered_image != None:
                                 n.image = triggered_image
@@ -334,8 +341,9 @@ class eventManager(Sensor, Reconfigurable):
             
             if e.last_triggered > 0:
                 ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
-                ret["state"][e.name]["triggered_value"] = e.triggered_value
-                ret["state"][e.name]["triggered_resource"] = e.triggered_resource
+                ret["state"][e.name]["triggered_class"] = e.triggered_class
+                ret["state"][e.name]["triggered_camera"] = e.triggered_camera
+                ret["state"][e.name]["triggered_rules"] = e.triggered_rules
 
             if e.pause_reason != "":
                 ret["state"][e.name]["pause_reason"] = e.pause_reason
@@ -351,7 +359,7 @@ class eventManager(Sensor, Reconfigurable):
                 triggered_label = "Triggered"
                 if "last_triggered" in ret["state"][e.name]:
                     triggered_label = triggered_label + "\n" + ret["state"][e.name]["last_triggered"]
-                    triggered_label = triggered_label + "\n" + ret["state"][e.name]["triggered_value"]
+                    triggered_label = triggered_label + "\n" + ret["state"][e.name]["triggered_label"]
                 layer.add_node(pydot.Node(f'Triggered{event_number}', label=triggered_label, fontname="Courier", fontsize="10pt", color=layer_color(e.state, "triggered")))
                 
                 layer.add_node(pydot.Node(f'Paused{event_number}', label="Paused", fontname="Courier", fontsize="10pt", color=layer_color(e.state, "paused")))

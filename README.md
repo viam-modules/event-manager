@@ -66,7 +66,7 @@ Return details for triggered events in the following format:
             "video_id": "edc519e5-85fe-42ab-af3c-506fcc827948",
             "organization_id": "72ff9713-adc7-4b15-a95b-2174468bde19",
             "location_id": "x7ahxaMJEfF",
-            "triggered_resource": "cam1"
+            "triggered_camera": "cam1"
         }
     ] 
 }
@@ -156,8 +156,8 @@ get_readings() JSON returns the current state of events:
         "a person camera 1": {
             "state": "actioning",
             "last_triggered": "2024-10-04T19:59:45Z",
-            "triggered_value": "Person",
-            "triggered_resource": "cam1",
+            "triggered_label": "Person",
+            "triggered_camera": "cam1",
             "actions_taken": [
                 {
                     "resource": "kasa_plug_1",
@@ -300,7 +300,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
                     "when_secs": -1, 
                     "resource": "vcam1",
                     "method": "do_command",
-                    "payload": "{'relabel' : {'<<triggered_value>>': 'Known person'}}"
+                    "payload": "{'relabel' : {'<<triggered_label>>': 'Known person'}}"
                 }
             ]
         }
@@ -438,15 +438,25 @@ This can help alleviate some false positives.
 
 *list*
 
-Notifications types when an event triggers.
+Notifications when an event triggers.
 
-"type" is one of sms|email.
+"type" is one of sms|email|webhook_get.
 
 "preset" is a string specifying the name of the preset message to send.
 
 "to" is a list of phone numbers or email addresses.
 
 "include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
+
+"url" - for webhook_get, the URL to call.
+
+The following are also sent in a *template_vars* object for sms and email:
+
+"event_name" - The configured event name.
+
+"triggered_class" - For computer vision triggers, the triggered class.
+
+"triggered_camera" -  For computer vision triggers, the triggered camera.
 
 #### actions
 
@@ -462,10 +472,10 @@ Currently only "generic" components and services, sensor components, and vision 
 "payload" - The JSON payload to pass to the method.
 Pass as a string that will be decoded to JSON.
 Single quotes will get translated to double quotes so as to validate as proper JSON.
-The following can variables be included enclosed in```<<>>``` (for example ```<<triggered_value>>```) and replaced with the corresponding value:
+The following can variables be included enclosed in```<<>>``` (for example ```<<triggered_label>>```) and replaced with the corresponding value:
 
 * event_name: The **name** of the event that was triggered.
-* triggered_value: The value of the trigger.  For example, if the event was triggered via a computer vision service, this is the label/class that triggered the event. (Note: *triggered_label* is an alias for triggered_value)
+* triggered_label: If the event was triggered via a computer vision service, this is the label/class that triggered the event.
 
 "response_match" -  If a response is sent via doCommand (or via SMS response) that matches "response_match" (regex), then this and any other matching actions will be taken.
 Any other actions that could later be taken will be ignored until the event triggers again.

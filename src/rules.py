@@ -82,7 +82,7 @@ class RuleTime():
                 self.__dict__[key] = value
 
 async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCall, resources):
-    response = { "triggered" : False, "image": None, "label": None, "known_person_seen": False }
+    response = { "triggered" : False }
     match rule.type:
         case "time":
             curr_time = datetime.now()
@@ -99,8 +99,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     LOGGER.debug("Detection triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
-                    response["label"] = d.class_name
-                    response["camera"] = rule.camera
+                    response["value"] = d.class_name
+                    response["resource"] = rule.camera
         case "classification":
             classifier = _get_vision_service(rule.classifier, resources)
             all = await classifier.capture_all_from_camera(rule.camera, return_classifications=True, return_image=True)
@@ -110,8 +110,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     LOGGER.debug("Classification triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
-                    response["label"] = c.class_name
-                    response["camera"] = rule.camera
+                    response["value"] = c.class_name
+                    response["resource"] = rule.camera
         case "tracker":
             tracker = _get_vision_service(rule.tracker, resources)
             # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection

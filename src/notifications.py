@@ -14,8 +14,8 @@ async def notify(event:events.Event, notification:NotificationEmail|Notification
     notification_args = {"command": "send", "to": notification.to, "preset": notification.preset, 
                             "template_vars": {
                                 "event_name": event.name, 
-                                "triggered_value": event.triggered_value, 
-                                "triggered_resource": event.triggered_resource
+                                "triggered_class": event.triggered_class, 
+                                "triggered_camera": event.triggered_camera
                             }}
 
     # create base64 representation of the image if needed

@@ -24,8 +24,9 @@ class Event():
     notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET]
     actions: list[Action]
     actions_paused: bool = False
-    triggered_value = ""
-    triggered_resource: str = ""
+    triggered_rules: dict = {}
+    triggered_camera: str = ""
+    triggered_class: str = ""
     trigger_sequence_count: int = 1
     sequence_count_current: int = 0
 
