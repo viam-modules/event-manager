@@ -82,7 +82,7 @@ class RuleTime():
                 self.__dict__[key] = value
 
 async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCall, resources):
-    response = { "triggered" : False, "image": None, "label": None, "known_person_seen": False }
+    response = { "triggered" : False }
     match rule.type:
         case "time":
             curr_time = datetime.now()
@@ -99,8 +99,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     LOGGER.debug("Detection triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
-                    response["label"] = d.class_name
-                    response["camera"] = rule.camera
+                    response["value"] = d.class_name
+                    response["resource"] = rule.camera
         case "classification":
             classifier = _get_vision_service(rule.classifier, resources)
             all = await classifier.capture_all_from_camera(rule.camera, return_classifications=True, return_image=True)
@@ -110,8 +110,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     LOGGER.debug("Classification triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
-                    response["label"] = c.class_name
-                    response["camera"] = rule.camera
+                    response["value"] = c.class_name
+                    response["resource"] = rule.camera
         case "tracker":
             tracker = _get_vision_service(rule.tracker, resources)
             # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
@@ -137,8 +137,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                     if not authorized:
                         im = viam_to_pil_image(all.image)
                         response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                        response["label"] = class_without_label
-                        response["camera"] = rule.camera
+                        response["value"] = class_without_label
+                        response["resource"] = rule.camera
             LOGGER.debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
                 LOGGER.info("Tracker triggered")
@@ -184,6 +184,8 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                         triggered = hasattr(call_res, rule.result_value)
 
                 response["triggered"] = triggered
+                response["value"] = call_res
+                response["resource"] = rule.resource
                 LOGGER.debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
             except Exception as e:
                 LOGGER.error(f"Error in 'call' type rule, rule not properly evaluated: {e}")

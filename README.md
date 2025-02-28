@@ -88,10 +88,6 @@ Number of triggered to return - default 5
 
 Name of configured event name to return triggered for.  If not specified, will return triggered across all events.
 
-*triggered_camera* string
-
-The name of the camera that triggered the event, if available.
-
 #### delete_triggered_video
 
 Delete a triggered event by video ID
@@ -161,7 +157,14 @@ get_readings() JSON returns the current state of events:
             "state": "actioning",
             "last_triggered": "2024-10-04T19:59:45Z",
             "triggered_label": "Person",
-            "triggered_resource": "cam1",
+            "triggered_camera": "cam1",
+            "triggered_rules": [
+                {
+                    "resource": "cam1",
+                    "triggered": true,
+                    "value": "Person"
+                }
+            ],
             "actions_taken": [
                 {
                     "resource": "kasa_plug_1",
@@ -442,15 +445,27 @@ This can help alleviate some false positives.
 
 *list*
 
-Notifications types when an event triggers.
+Notifications when an event triggers.
 
-"type" is one of sms|email.
+"type" is one of sms|email|webhook_get.
 
 "preset" is a string specifying the name of the preset message to send.
 
 "to" is a list of phone numbers or email addresses.
 
 "include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
+
+"url" - for webhook_get, the URL to call.
+
+The following are also sent in a *template_vars* object for sms and email:
+
+"event_name" - The configured event name.
+
+"triggered_label" - For computer vision triggers, the triggered label/class.
+
+"triggered_camera" -  For computer vision triggers, the triggered camera.
+
+"image_base64" - For computer vision triggers, the base64 string representation of the image.
 
 #### actions
 
@@ -489,9 +504,9 @@ Any number of rules can be configured for a given event.
 
 *enum detection|classification|tracker|time*
 
-If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
 
-If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
 
 If *type* is **tracker**, a *tracker* vision service, and a *camera* (a configured camera included in *resources*) must be defined. *pause_on_known_secs* may be specified, which is the number of seconds to pause event evaluation if a known person is seen.
 
