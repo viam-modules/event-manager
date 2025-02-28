@@ -164,7 +164,7 @@ class eventManager(Sensor, Reconfigurable):
                     event.pause_reason = ""
 
                     event.triggered_camera = ""
-                    event.triggered_class = ""
+                    event.triggered_label = ""
                     event.triggered_rules = {}
 
                     actions.flip_action_status(event, False)
@@ -213,7 +213,7 @@ class eventManager(Sensor, Reconfigurable):
                             if rule_results[rule_index]['triggered'] == True:
                                 if hasattr(rule, 'camera'):
                                     if "value" in rule_results[rule_index]:
-                                        event.triggered_class = rule_results[rule_index]["value"]
+                                        event.triggered_label = rule_results[rule_index]["value"]
                                     if "resource" in rule_results[rule_index]:
                                         event.triggered_camera = rule_results[rule_index]["resource"]
                                     if "image" in rule_results[rule_index]:
@@ -341,7 +341,7 @@ class eventManager(Sensor, Reconfigurable):
             
             if e.last_triggered > 0:
                 ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
-                ret["state"][e.name]["triggered_class"] = e.triggered_class
+                ret["state"][e.name]["triggered_label"] = e.triggered_label
                 ret["state"][e.name]["triggered_camera"] = e.triggered_camera
                 ret["state"][e.name]["triggered_rules"] = e.triggered_rules
 

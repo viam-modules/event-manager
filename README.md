@@ -461,7 +461,7 @@ The following are also sent in a *template_vars* object for sms and email:
 
 "event_name" - The configured event name.
 
-"triggered_class" - For computer vision triggers, the triggered class.
+"triggered_label" - For computer vision triggers, the triggered label/class.
 
 "triggered_camera" -  For computer vision triggers, the triggered camera.
 
@@ -504,9 +504,9 @@ Any number of rules can be configured for a given event.
 
 *enum detection|classification|tracker|time*
 
-If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
 
-If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class, defaults to any class) must be defined.
+If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
 
 If *type* is **tracker**, a *tracker* vision service, and a *camera* (a configured camera included in *resources*) must be defined. *pause_on_known_secs* may be specified, which is the number of seconds to pause event evaluation if a known person is seen.
 

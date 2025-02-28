@@ -14,7 +14,7 @@ async def notify(event:events.Event, notification:NotificationEmail|Notification
     notification_args = {"command": "send", "to": notification.to, "preset": notification.preset, 
                             "template_vars": {
                                 "event_name": event.name, 
-                                "triggered_class": event.triggered_class, 
+                                "triggered_label": event.triggered_label, 
                                 "triggered_camera": event.triggered_camera
                             }}
 

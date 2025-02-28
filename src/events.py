@@ -26,7 +26,7 @@ class Event():
     actions_paused: bool = False
     triggered_rules: dict = {}
     triggered_camera: str = ""
-    triggered_class: str = ""
+    triggered_label: str = ""
     trigger_sequence_count: int = 1
     sequence_count_current: int = 0
 
