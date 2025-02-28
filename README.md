@@ -158,6 +158,13 @@ get_readings() JSON returns the current state of events:
             "last_triggered": "2024-10-04T19:59:45Z",
             "triggered_label": "Person",
             "triggered_camera": "cam1",
+            "triggered_rules": [
+                {
+                    "resource": "cam1",
+                    "triggered": true,
+                    "value": "Person"
+                }
+            ],
             "actions_taken": [
                 {
                     "resource": "kasa_plug_1",
