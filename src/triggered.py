@@ -1,19 +1,19 @@
 import bson
 import asyncio
+
 from PIL import Image
 from viam.proto.app.data import Filter
 from viam.components.camera import CameraClient, Camera
 from viam.app.viam_client import ViamClient
 from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
 from viam.proto.app.data import BinaryID, Order
+from .globals import shared_state
 from typing import cast
 from datetime import datetime, timedelta, timezone
 
 import io
 
-from viam.logging import getLogger
-
-LOGGER = getLogger(__name__)
+LOGGER = shared_state['logger']
 
 async def request_capture(event, resources:dict):
     vs = _get_video_store(event.video_capture_resource, resources)

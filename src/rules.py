@@ -6,12 +6,11 @@ from typing import cast
 from PIL import Image
 from . import logic
 from .resourceUtils import call_method
-
+from .globals import shared_state
 from viam.services.vision import VisionClient, Detection, Classification, Vision
-from viam.logging import getLogger
 from viam.media.utils.pil import viam_to_pil_image
 
-LOGGER = getLogger(__name__)
+LOGGER = shared_state['logger']
 
 class TimeRange():
     start_hour: int

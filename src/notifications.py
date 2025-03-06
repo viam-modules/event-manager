@@ -1,12 +1,12 @@
 import urllib
-from viam.logging import getLogger
 import base64
 from io import BytesIO
 from datetime import datetime, timezone
 from . import events
 from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
+from .globals import shared_state
 
-LOGGER = getLogger(__name__)
+LOGGER = shared_state['logger']
 
 
 async def notify(event:events.Event, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):

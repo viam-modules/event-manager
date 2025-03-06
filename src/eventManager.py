@@ -18,9 +18,7 @@ from viam.utils import ValueTypes, struct_to_dict
 from viam.app.viam_client import ViamClient
 from viam.rpc.dial import DialOptions
 
-from viam.logging import getLogger
-
-from . import events, rules, notifications, triggered, actions
+from . import events, rules, notifications, triggered, actions, globals
 
 import time
 import asyncio
@@ -29,8 +27,6 @@ import re
 import pydot
 import traceback
 from enum import Enum
-
-LOGGER = getLogger(__name__)
 
 class Modes(Enum):
     active = 1
@@ -127,6 +123,9 @@ class eventManager(Sensor, Reconfigurable):
             stop_event = self.stop_events.pop()
             stop_event.set()
 
+        # make the resource logger available globally
+        globals.shared_state['logger'] = self.logger
+
         asyncio.ensure_future(self.manage_events())
         return
     
@@ -139,7 +138,7 @@ class eventManager(Sensor, Reconfigurable):
         return await ViamClient.create_from_dial_options(dial_options)
     
     async def manage_events(self):
-        LOGGER.info("Starting event manager")
+        self.logger.info("Starting event manager")
 
         if (self.api_key != '' and self.api_key_id != ''):
             self.app_client = await self.viam_connect()
@@ -151,7 +150,7 @@ class eventManager(Sensor, Reconfigurable):
             asyncio.create_task(self.event_check_loop(event, stop_event))
     
     async def event_check_loop(self, event:events.Event, stop_event):
-        LOGGER.info("Starting event check loop for " + event.name)
+        self.logger.info("Starting event check loop for " + event.name)
         while not stop_event.is_set():
             try:
                 if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
@@ -171,7 +170,7 @@ class eventManager(Sensor, Reconfigurable):
 
                     rule_results = []
                     for rule in event.rules:
-                        LOGGER.debug(rule)
+                        self.logger.debug(rule)
                         result = await rules.eval_rule(rule, self.robot_resources)
                         if result["triggered"] == True:
                             event.sequence_count_current = event.sequence_count_current + 1
@@ -237,7 +236,7 @@ class eventManager(Sensor, Reconfigurable):
                     if to_wait > 0:
                         await asyncio.sleep(to_wait)
                 elif (event.is_triggered == True) and (event.actions_paused == False):
-                    LOGGER.debug("checking for ACTIONS")
+                    self.logger.debug("checking for ACTIONS")
                     event.state = "actioning"
 
                     # see if any actions need to be performed
@@ -260,11 +259,11 @@ class eventManager(Sensor, Reconfigurable):
                     self.mode_overridden = ""
                     self.mode_override_until = None
             except Exception as e:
-                LOGGER.error(f'Error in event check loop: {e}')
-                LOGGER.error(traceback.print_exc())
+                self.logger.error(f'Error in event check loop: {e}')
+                self.logger.error(traceback.print_exc())
                 await asyncio.sleep(1)
 
-        LOGGER.info("Ending event check loop for " + event.name)
+        self.logger.info("Ending event check loop for " + event.name)
     
     async def event_action(self, event, action, message):
         should_action = await actions.eval_action(event, action, message)

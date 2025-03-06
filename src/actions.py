@@ -1,13 +1,12 @@
 import re
 import time
 
-from viam.logging import getLogger
-
+from .globals import shared_state
 from .events import Event
 from .actionClass import Action
 from .resourceUtils import call_method
 
-LOGGER = getLogger(__name__)
+LOGGER = shared_state['logger']
 
 def flip_action_status(event:Event, direction:bool):
     action:Action

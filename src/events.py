@@ -1,9 +1,9 @@
 from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
 from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
+from .globals import shared_state
 
-from viam.logging import getLogger
-LOGGER = getLogger(__name__)
+LOGGER = shared_state['logger']
 
 class Event():
     name: str
