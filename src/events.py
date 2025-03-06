@@ -2,9 +2,6 @@ from .notificationClass import NotificationEmail, NotificationSMS, NotificationW
 from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
 
-from viam.logging import getLogger
-LOGGER = getLogger(__name__)
-
 class Event():
     name: str
     state: str = 'paused'

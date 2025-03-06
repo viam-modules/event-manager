@@ -6,9 +6,6 @@ from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
 from viam.components.sensor import Sensor
 
-from viam.logging import getLogger
-
-LOGGER = getLogger(__name__)
 
 async def call_method(resources, name, method, payload, event):
     # certainly this could be improved

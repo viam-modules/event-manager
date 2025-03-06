@@ -1,19 +1,17 @@
 import bson
 import asyncio
+
 from PIL import Image
 from viam.proto.app.data import Filter
 from viam.components.camera import CameraClient, Camera
 from viam.app.viam_client import ViamClient
 from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
 from viam.proto.app.data import BinaryID, Order
+from .globals import getParam
 from typing import cast
 from datetime import datetime, timedelta, timezone
 
 import io
-
-from viam.logging import getLogger
-
-LOGGER = getLogger(__name__)
 
 async def request_capture(event, resources:dict):
     vs = _get_video_store(event.video_capture_resource, resources)
@@ -43,7 +41,7 @@ async def request_capture(event, resources:dict):
         store_result = await vs.do_command( store_args )
         return store_result
     except Exception as e:
-        LOGGER.error(e)
+        getParam('logger').error(e)
 
 async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
     if (app_client): 
@@ -81,12 +79,12 @@ async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=No
         # now try to match any videos based on event timestamp
         videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=Order.ORDER_DESCENDING)
         for video in videos[0]:
-            LOGGER.debug(video.metadata)
+            getParam('logger').debug(video.metadata)
             spl = video.metadata.file_name.split('--')
             if len(spl) > 3:
                 vtime = datetime.fromtimestamp( int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
                 if vtime in matched_index_by_dt:
-                    LOGGER.debug(video)
+                    getParam('logger').debug(video)
                     matched[matched_index_by_dt[vtime]]["video_id"] = video.metadata.id
         return matched
     else:
