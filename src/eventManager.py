@@ -21,6 +21,7 @@ from viam.rpc.dial import DialOptions
 from . import events, rules, notifications, triggered, actions, globals
 
 import time
+import copy
 import asyncio
 from datetime import datetime, timezone, timedelta
 import re
@@ -104,17 +105,15 @@ class eventManager(Sensor, Reconfigurable):
                 event.state = "setup"
                 self.event_states.append(event)
 
-        self.robot_resources['_deps'] = dependencies
+        self.deps = dependencies
         self.robot_resources['resources'] = attributes.get("resources")
 
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
-            actual = dependencies[GenericService.get_resource_name(sms_module)]
-            self.robot_resources['sms_module'] = cast(GenericService, actual)
+            self.robot_resources['sms_module_name'] = sms_module
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
-            actual = dependencies[GenericService.get_resource_name(email_module)]
-            self.robot_resources['email_module'] = cast(GenericService, actual)
+            self.robot_resources['email_module_name'] = email_module
         
         self.api_key = config.attributes.fields["app_api_key"].string_value or ''
         self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
@@ -150,6 +149,17 @@ class eventManager(Sensor, Reconfigurable):
         # make the resource logger available globally
         globals.setParam('logger',self.logger)
 
+        # copy so we don't cause locking issue by referencing the same resource across event tasks
+        event_resources = copy.deepcopy(self.robot_resources)
+        event_resources['_deps'] = self.deps
+        
+        if event_resources["sms_module_name"] != "":
+            actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["sms_module_name"])]
+            event_resources['sms_module'] = cast(GenericService, actual)
+        if event_resources["email_module_name"] != "":
+            actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["email_module_name"])]
+            event_resources['email_module'] = cast(GenericService, actual)
+
         self.logger.info("Starting event check loop for " + event.name)
         while not stop_event.is_set():
             try:
@@ -171,7 +181,7 @@ class eventManager(Sensor, Reconfigurable):
                     rule_results = []
                     for rule in event.rules:
                         self.logger.debug(rule)
-                        result = await rules.eval_rule(rule, self.robot_resources)
+                        result = await rules.eval_rule(rule, event_resources)
                         if result["triggered"] == True:
                             event.sequence_count_current = event.sequence_count_current + 1
                         else:
@@ -220,7 +230,7 @@ class eventManager(Sensor, Reconfigurable):
                                         # remove once copied because we will use rule_results for state reporting
                                         del rule_results[rule_index]["image"]
                                     if event.capture_video:
-                                        asyncio.ensure_future(triggered.request_capture(event, self.robot_resources))
+                                        asyncio.ensure_future(triggered.request_capture(event, event_resources))
                             rule_index = rule_index + 1
 
                         event.triggered_rules = rule_results
@@ -228,7 +238,7 @@ class eventManager(Sensor, Reconfigurable):
                         for n in event.notifications:
                             if triggered_image != None:
                                 n.image = triggered_image
-                            await notifications.notify(event, n, self.robot_resources)
+                            await notifications.notify(event, n, event_resources)
 
                     # try to respect detection_hz as desired speed of detections
                     elapsed = (datetime.now() - start_time).total_seconds()
@@ -244,9 +254,9 @@ class eventManager(Sensor, Reconfigurable):
                     # only poll for SMS if there are actions configured for this event
                     # TODO: only poll if actions are checking for SMS responses
                     if len(event.actions):
-                        sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, self.robot_resources)
+                        sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, event_resources)
                     for action in event.actions:
-                        await self.event_action(event, action, sms_message)
+                        await self.event_action(event, action, sms_message, event_resources)
                     await asyncio.sleep(1)
                 else:
                     # sleep if we know we are not currently checking for this event
@@ -265,7 +275,7 @@ class eventManager(Sensor, Reconfigurable):
 
         self.logger.info("Ending event check loop for " + event.name)
     
-    async def event_action(self, event, action, message):
+    async def event_action(self, event, action, message, event_resources):
         should_action = await actions.eval_action(event, action, message)
         if should_action:
             if message != "":
@@ -273,7 +283,7 @@ class eventManager(Sensor, Reconfigurable):
                 event.actions_paused = True
                 event.state = "paused"
                 event.pause_reason = "sms"
-            await actions.do_action(event, action, self.robot_resources)
+            await actions.do_action(event, action, event_resources)
 
     async def do_command(
                 self,
@@ -306,7 +316,7 @@ class eventManager(Sensor, Reconfigurable):
                 for e in self.event_states:
                     if (e.name == args.get("event", "")) and e.is_triggered == True:
                         for action in e.actions:
-                            await self.event_action(e, action, args.get("response", ""))
+                            await self.event_action(e, action, args.get("response", ""), event_resources)
                 result = {"responded": True}
 
         return result  
