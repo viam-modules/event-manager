@@ -123,9 +123,6 @@ class eventManager(Sensor, Reconfigurable):
             stop_event = self.stop_events.pop()
             stop_event.set()
 
-        # make the resource logger available globally
-        globals.shared_state['logger'] = self.logger
-
         asyncio.ensure_future(self.manage_events())
         return
     
@@ -150,6 +147,9 @@ class eventManager(Sensor, Reconfigurable):
             asyncio.create_task(self.event_check_loop(event, stop_event))
     
     async def event_check_loop(self, event:events.Event, stop_event):
+        # make the resource logger available globally
+        globals.setParam('logger',self.logger)
+
         self.logger.info("Starting event check loop for " + event.name)
         while not stop_event.is_set():
             try:
@@ -260,7 +260,7 @@ class eventManager(Sensor, Reconfigurable):
                     self.mode_override_until = None
             except Exception as e:
                 self.logger.error(f'Error in event check loop: {e}')
-                self.logger.error(traceback.print_exc())
+                self.logger.error(traceback.format_exc())
                 await asyncio.sleep(1)
 
         self.logger.info("Ending event check loop for " + event.name)

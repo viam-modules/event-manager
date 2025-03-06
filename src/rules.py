@@ -6,11 +6,10 @@ from typing import cast
 from PIL import Image
 from . import logic
 from .resourceUtils import call_method
-from .globals import shared_state
+from .globals import getParam
 from viam.services.vision import VisionClient, Detection, Classification, Vision
 from viam.media.utils.pil import viam_to_pil_image
 
-LOGGER = shared_state['logger']
 
 class TimeRange():
     start_hour: int
@@ -87,7 +86,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             curr_time = datetime.now()
             for r in rule.ranges:
                 if (curr_time.hour >= r.start_hour) and (curr_time.hour < r.end_hour):
-                    LOGGER.debug("Time triggered")
+                    getParam('logger').debug("Time triggered")
                     response["triggered"] = True   
         case "detection":
             detector = _get_vision_service(rule.detector, resources)
@@ -95,7 +94,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             d: Detection
             for d in all.detections:
                 if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
-                    LOGGER.debug("Detection triggered")
+                    getParam('logger').debug("Detection triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
                     response["value"] = d.class_name
@@ -106,7 +105,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
             c: Classification
             for c in all.classifications:
                 if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
-                    LOGGER.debug("Classification triggered")
+                    getParam('logger').debug("Classification triggered")
                     response["triggered"] = True
                     response["image"] = viam_to_pil_image(all.image)
                     response["value"] = c.class_name
@@ -125,7 +124,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 # NOTE: the class name of a tracker detection that has been labeled now has a label appended to it,
                 #  so it would never ever match a key in current[].  We will therefore strip this label.
                 class_without_label = re.sub(r'\s+\(label:\s.*', '', d.class_name)
-                LOGGER.debug(class_without_label + "-" + str(current["list_current"]))
+                getParam('logger').debug(class_without_label + "-" + str(current["list_current"]))
 
                 if class_without_label in current["list_current"]:
                     k = current["list_current"][class_without_label]
@@ -138,10 +137,10 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                         response["image"] = im.crop((d.x_min, d.y_min, d.x_max, d.y_max))
                         response["value"] = class_without_label
                         response["resource"] = rule.camera
-            LOGGER.debug(approved_status)
+            getParam('logger').debug(approved_status)
             if len(approved_status) > 0 and logic.NOR(approved_status):
-                LOGGER.info("Tracker triggered")
-                LOGGER.info(response)
+                getParam('logger').info("Tracker triggered")
+                getParam('logger').info(response)
 
                 response["triggered"] = True
         case "call":
@@ -150,10 +149,10 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 if rule.result_path:
                     call_res = get_value_by_dot_notation(call_res, rule.result_path)
                     if call_res == None:
-                        LOGGER.error(f"data not found in path {rule.result_path}")
+                        getParam('logger').error(f"data not found in path {rule.result_path}")
                         return response
 
-                LOGGER.debug(call_res)
+                getParam('logger').debug(call_res)
                 if rule.result_function:
                     match rule.result_function:
                         case "len":
@@ -185,9 +184,9 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 response["triggered"] = triggered
                 response["value"] = call_res
                 response["resource"] = rule.resource
-                LOGGER.debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
+                getParam('logger').debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
             except Exception as e:
-                LOGGER.error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
+                getParam('logger').error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
     return response
 
 def logical_trigger(logic_type, list):

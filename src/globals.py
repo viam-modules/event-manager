@@ -1,3 +1,11 @@
 shared_state = {
-    'logger': None
 }
+
+def setParam(param, value):
+    shared_state[param] = value
+
+def getParam(param):
+    if param in shared_state:
+        return shared_state[param]
+    else:
+        return None

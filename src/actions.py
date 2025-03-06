@@ -1,12 +1,10 @@
 import re
 import time
 
-from .globals import shared_state
+from .globals import getParam
 from .events import Event
 from .actionClass import Action
 from .resourceUtils import call_method
-
-LOGGER = shared_state['logger']
 
 def flip_action_status(event:Event, direction:bool):
     action:Action
@@ -18,7 +16,7 @@ async def eval_action(event:Event, action:Action, sms_message):
         return False
     if (sms_message != "") and (action.response_match != ""):
         if re.search(action.response_match, sms_message):
-            LOGGER.debug(f"matched {action.response_match}")
+            getParam('logger').debug(f"matched {action.response_match}")
             return True
     if action.when_secs != -1:
         if (time.time() - event.last_triggered) >= action.when_secs:

@@ -1,9 +1,6 @@
 from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
 from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
-from .globals import shared_state
-
-LOGGER = shared_state['logger']
 
 class Event():
     name: str
