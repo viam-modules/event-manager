@@ -4,6 +4,7 @@ import asyncio
 from PIL import Image
 from viam.proto.app.data import Filter
 from viam.components.camera import CameraClient, Camera
+from viam.components.generic import GenericClient, Generic
 from viam.app.viam_client import ViamClient
 from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
 from viam.proto.app.data import BinaryID, Order
@@ -103,9 +104,9 @@ def _name_clean(string):
 def _label(event_name, cam_name, last_triggered):
     return _name_clean(f"SAVCAM--{event_name}--{cam_name}--{str(last_triggered)}")
 
-def _get_video_store(name, resources) -> Camera:
-    actual = resources['_deps'][CameraClient.get_resource_name(name)]
+def _get_video_store(name, resources) -> Generic:
+    actual = resources['_deps'][GenericClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
-        resources[actual] = cast(CameraClient, actual)
+        resources[actual] = cast(GenericClient, actual)
     return resources[actual]
