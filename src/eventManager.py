@@ -152,7 +152,7 @@ class eventManager(Sensor, Reconfigurable):
         # copy so we don't cause locking issue by referencing the same resource across event tasks
         event_resources = copy.deepcopy(self.robot_resources)
         event_resources['_deps'] = self.deps
-        
+
         if event_resources["sms_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["sms_module_name"])]
             event_resources['sms_module'] = cast(GenericService, actual)

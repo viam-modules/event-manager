@@ -105,8 +105,17 @@ def _label(event_name, cam_name, last_triggered):
     return _name_clean(f"SAVCAM--{event_name}--{cam_name}--{str(last_triggered)}")
 
 def _get_video_store(name, resources) -> Generic:
-    actual = resources['_deps'][GenericClient.get_resource_name(name)]
+    # newer versions of video-store resource are Generic, older are Camera
+    is_generic = True
+    resource_name = GenericClient.get_resource_name(name)
+    if resource_name not in resources['_deps']:
+        resource_name = CameraClient.get_resource_name(name)
+        is_generic = False
+    actual = resources['_deps'][resource_name]
     if resources.get(actual) == None:
         # initialize if it is not already
-        resources[actual] = cast(GenericClient, actual)
+        if is_generic:
+            resources[actual] = cast(GenericClient, actual)
+        else:
+            resources[actual] = cast(CameraClient, actual)
     return resources[actual]
