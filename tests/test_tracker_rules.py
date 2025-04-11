@@ -11,8 +11,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.rules import RuleTracker, eval_rule
 
-# Mark all async tests
-pytestmark = pytest.mark.asyncio
+# Remove the global pytestmark that's causing the warning
+# pytestmark = pytest.mark.asyncio
 
 class TestTrackerRuleInitialization:
     def test_tracker_rule_initialization(self):
@@ -32,6 +32,8 @@ class TestTrackerRuleInitialization:
         assert rule.pause_on_known_secs == 300
         assert rule.type == "tracker"
 
+# Add class-specific marker for async test class
+@pytest.mark.asyncio
 class TestTrackerRuleEvaluation:
     async def test_tracker_rule_unauthorized_person(self, mock_logger, mock_resources, mock_image, mock_regex_sub):
         """Test tracker rule evaluation when an unauthorized person is detected"""

@@ -11,8 +11,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.triggered import request_capture, get_triggered_cloud, delete_from_cloud, _name_clean, _label, _get_video_store
 
+# Remove the global marker
+# pytestmark = pytest.mark.asyncio
 
-# Mark only async tests with this decorator
 class TestTriggeredHelpers:
     """Tests for helper functions in triggered.py"""
     
@@ -74,10 +75,10 @@ class TestVideoStore:
         assert mock_resources[mock_camera] == mock_camera
 
 
+@pytest.mark.asyncio
 class TestRequestCapture:
     """Tests for the request_capture function"""
     
-    @pytest.mark.asyncio
     async def test_successful_capture(self, mock_logger):
         """Test a successful video capture request"""
         # Setup mocks
@@ -114,7 +115,6 @@ class TestRequestCapture:
                     # Check the result
                     assert result == {"status": "saving"}
     
-    @pytest.mark.asyncio
     async def test_capture_error_handling(self, mock_logger):
         """Test error handling during video capture"""
         # Setup mocks
@@ -141,10 +141,10 @@ class TestRequestCapture:
                     assert result is None
 
 
+@pytest.mark.asyncio
 class TestCloudFunctions:
     """Tests for cloud-related functions"""
     
-    @pytest.mark.asyncio
     async def test_get_triggered_cloud_no_client(self, mock_logger):
         """Test get_triggered_cloud with no app client"""
         with patch('src.triggered.getParam', return_value=mock_logger):
@@ -152,7 +152,6 @@ class TestCloudFunctions:
             
             assert "error" in result
     
-    @pytest.mark.asyncio
     async def test_delete_from_cloud_no_client(self, mock_logger):
         """Test delete_from_cloud with no app client"""
         with patch('src.triggered.getParam', return_value=mock_logger):
@@ -160,7 +159,6 @@ class TestCloudFunctions:
             
             assert "error" in result
     
-    @pytest.mark.asyncio
     async def test_get_triggered_cloud_with_client(self, mock_logger):
         """Test get_triggered_cloud with a mock app client"""
         # Setup mock app client
@@ -225,7 +223,6 @@ class TestCloudFunctions:
                 if "video_id" in result[0]:
                     assert result[0]["video_id"] == "video123"
     
-    @pytest.mark.asyncio
     async def test_delete_from_cloud_with_client(self, mock_logger):
         """Test delete_from_cloud with a mock app client"""
         # Setup mock app client

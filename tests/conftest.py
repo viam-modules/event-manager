@@ -8,13 +8,13 @@ import asyncio
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-# Enable asyncio for pytest
-@pytest.fixture
-def event_loop():
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Remove the custom event_loop fixture and let pytest-asyncio handle it
+# @pytest.fixture
+# def event_loop():
+#     """Create an instance of the default event loop for each test case."""
+#     loop = asyncio.get_event_loop_policy().new_event_loop()
+#     yield loop
+#     loop.close()
 
 @pytest.fixture
 def mock_logger():

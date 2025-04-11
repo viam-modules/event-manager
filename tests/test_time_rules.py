@@ -42,6 +42,7 @@ class TestTimeRuleInitialization:
         assert rule.ranges[1].start_hour == 13
         assert rule.ranges[1].end_hour == 17
 
+# Properly mark the async test class
 @pytest.mark.asyncio
 class TestTimeRuleEvaluation:
     async def test_time_rule_within_range(self):
