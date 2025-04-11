@@ -3,3 +3,6 @@ pillow
 pydot~=3.0.2
 pyinstaller~=6.10.0
 pymongo
+# Test dependencies
+coverage~=7.3.2
+pytest~=7.4.3
