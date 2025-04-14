@@ -20,6 +20,7 @@ from viam.app.viam_client import ViamClient
 from viam.rpc.dial import DialOptions
 
 from . import events, rules, notifications, triggered, actions, globals
+from PIL import Image
 
 import time
 import copy
@@ -367,7 +368,26 @@ class eventManager(Sensor, Reconfigurable):
                 ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp(e.last_triggered, timezone.utc).isoformat() + 'Z'
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
                 ret["state"][e.name]["triggered_camera"] = e.triggered_camera
-                ret["state"][e.name]["triggered_rules"] = e.triggered_rules
+                
+                # Sanitize triggered_rules to ensure UTF-8 compatibility
+                if e.triggered_rules:
+                    sanitized_rules = {}
+                    for rule_id, rule_result in e.triggered_rules.items():
+                        # Create a sanitized copy of each rule result
+                        sanitized_result = {}
+                        for k, v in rule_result.items():
+                            # Skip binary data or convert to safe string
+                            if isinstance(v, (bytes, bytearray, memoryview)):
+                                continue
+                            # Skip complex objects that might not serialize properly
+                            elif isinstance(v, (Image.Image,)):
+                                continue
+                            else:
+                                sanitized_result[k] = v
+                        sanitized_rules[rule_id] = sanitized_result
+                    ret["state"][e.name]["triggered_rules"] = sanitized_rules
+                else:
+                    ret["state"][e.name]["triggered_rules"] = {}
 
             if e.pause_reason != "":
                 ret["state"][e.name]["pause_reason"] = e.pause_reason
@@ -403,7 +423,7 @@ class eventManager(Sensor, Reconfigurable):
                 }
                 if a.taken:
                     a_ret["when"] = datetime.fromtimestamp(a.last_taken, timezone.utc).isoformat() + 'Z'
-                actions.append( a_ret )
+                actions.append(a_ret)
 
                 if include_dot:
                     a_label = f'Actioning\n{a.resource}/{a.method}'
