@@ -1,4 +1,5 @@
 from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast
+
 from typing_extensions import Self
 from typing import Final
 
@@ -25,30 +26,30 @@ import copy
 import asyncio
 from datetime import datetime, timezone, timedelta
 import re
-import pydot
+import pydot  # type: ignore
 import traceback
-from enum import Enum
+# from enum import Enum
 
-class Modes(Enum):
-    active = 1
-    inactive = 2
+# class Modes(Enum):
+#     active = "active"
+#     inactive = "inactive"
 
 class eventManager(Sensor, Reconfigurable):
     
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "event-manager"), "eventing")
     
     name: str
-    mode: Modes = "inactive"
+    mode: str = "inactive"
     mode_overridden: str = ""
-    mode_override_until: None
+    mode_override_until: Optional[float] = None
     app_client: None
     api_key_id: str
     api_key: str
     part_id: str
-    robot_resources = {}
-    dm_sent_status = {}
+    robot_resources: Dict[str, Any] = {}
+    dm_sent_status: Dict[str, float] = {}
     event_states: list[events.Event] = []
-    stop_events = []
+    stop_events: list[asyncio.Event] = []
 
     # Constructor
     @classmethod
@@ -65,8 +66,9 @@ class eventManager(Sensor, Reconfigurable):
         attributes = struct_to_dict(config.attributes)
 
         resources = attributes.get("resources")
-        for r in resources.keys():
-            deps.append(r)
+        if isinstance(resources, dict):
+            for r in resources.keys():
+                deps.append(r)
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
             deps.append(sms_module)
@@ -84,26 +86,34 @@ class eventManager(Sensor, Reconfigurable):
 
         attributes = struct_to_dict(config.attributes)
 
-        mode = "inactive"
-        if attributes.get("mode"):
-            mode = attributes.get("mode")
+        # Set mode directly from attributes
+        mode = "inactive"  # Default if not provided
+        if attributes.get("mode") and isinstance(attributes.get("mode"), str):
+            mode = str(attributes.get("mode"))
 
-        if attributes.get("mode_override"):
-            until = iso8601_to_timestamp(attributes["mode_override"]["until"])
-            self.mode_override_until = until
-            self.mode_overridden = mode
-            mode = attributes["mode_override"]["mode"]
+        mode_override = attributes.get("mode_override")
+        if isinstance(mode_override, dict):
+            until_value = mode_override.get("until")
+            mode_value = mode_override.get("mode")
+            if until_value is not None:
+                until = iso8601_to_timestamp(until_value)
+                self.mode_override_until = until
+                # Store current mode for later
+                self.mode_overridden = mode
+                if isinstance(mode_value, str):
+                    mode = mode_value
         self.mode = mode
 
         if attributes.get('event_video_capture_padding_secs'):
             self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
 
         dict_events = attributes.get("events")
-        if dict_events is not None:
+        if dict_events is not None and isinstance(dict_events, list):
             for e in dict_events:
-                event = events.Event(**e)
-                event.state = "setup"
-                self.event_states.append(event)
+                if isinstance(e, dict):
+                    event = events.Event(**e)
+                    event.state = "setup"
+                    self.event_states.append(event)
 
         self.deps = dependencies
         self.robot_resources['resources'] = attributes.get("resources")
@@ -145,7 +155,7 @@ class eventManager(Sensor, Reconfigurable):
             self.stop_events.append(stop_event)
             asyncio.create_task(self.event_check_loop(event, stop_event))
     
-    async def event_check_loop(self, event:events.Event, stop_event):
+    async def event_check_loop(self, event:events.Event, stop_event: asyncio.Event):
         # make the resource logger available globally
         globals.setParam('logger',self.logger)
 
@@ -233,7 +243,8 @@ class eventManager(Sensor, Reconfigurable):
                                         asyncio.ensure_future(triggered.request_capture(event, event_resources))
                             rule_index = rule_index + 1
 
-                        event.triggered_rules = rule_results
+                        # Convert list to dictionary with indices as keys
+                        event.triggered_rules = {i: result for i, result in enumerate(rule_results)}
 
                         for n in event.notifications:
                             if triggered_image != None:
@@ -262,9 +273,8 @@ class eventManager(Sensor, Reconfigurable):
                     # sleep if we know we are not currently checking for this event
                     await asyncio.sleep(.5)
 
-
                 # check if mode override is expired
-                if self.mode_overridden != "" and (time.time() >= self.mode_override_until):
+                if self.mode_overridden != "" and self.mode_override_until is not None and (time.time() >= self.mode_override_until):
                     self.mode = self.mode_overridden
                     self.mode_overridden = ""
                     self.mode_override_until = None
@@ -275,7 +285,7 @@ class eventManager(Sensor, Reconfigurable):
 
         self.logger.info("Ending event check loop for " + event.name)
     
-    async def event_action(self, event, action, message, event_resources):
+    async def event_action(self, event: events.Event, action: actions.Action, message: str, event_resources: Dict[str, Any]):
         should_action = await actions.eval_action(event, action, message)
         if should_action:
             if message != "":
@@ -292,31 +302,37 @@ class eventManager(Sensor, Reconfigurable):
                 timeout: Optional[float] = None,
                 **kwargs
             ) -> Mapping[str, ValueTypes]:
-        result = {}
+        result: Dict[str, Any] = {}
         for name, args in command.items():
-            if name == "get_triggered":
-                result["triggered"] = await triggered.get_triggered_cloud(event_manager_name=self.name,organization_id=args.get("organization_id",None), num=args.get("number",5), event_name=args.get("event",None), app_client=self.app_client)
-            elif name == "delete_triggered_video":
-                result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
-            elif name == "trigger_event":
+            if name == "get_triggered" and isinstance(args, dict):
+                if self.app_client is not None:
+                    result["triggered"] = await triggered.get_triggered_cloud(event_manager_name=self.name,organization_id=args.get("organization_id",None), num=args.get("number",5), event_name=args.get("event",None), app_client=self.app_client)
+                else:
+                    result["triggered"] = []
+            elif name == "delete_triggered_video" and isinstance(args, dict):
+                if self.app_client is not None:
+                    result["total"] = await triggered.delete_from_cloud(id=args.get("id",None), location_id=args.get("location_id",None), organization_id=args.get("organization_id",None), app_client=self.app_client)
+                else:
+                    result["total"] = 0
+            elif name == "trigger_event" and isinstance(args, dict):
                 for e in self.event_states:
                     if e.name == args.get("event", ""):
                         e.is_triggered = True
                         e.last_triggered = time.time()
                         e.state = "triggered"
                         result = {"triggered": True}
-            elif name == "pause_triggered":
+            elif name == "pause_triggered" and isinstance(args, dict):
                 for e in self.event_states:
                     if (e.name == args.get("event", "")) and e.is_triggered == True:
                         e.state = "paused"
                         e.pause_reason = "manual"
                         e.actions_paused = True
                         result = {"paused": True}
-            elif name == "respond_triggered":
+            elif name == "respond_triggered" and isinstance(args, dict):
                 for e in self.event_states:
                     if (e.name == args.get("event", "")) and e.is_triggered == True:
                         for action in e.actions:
-                            await self.event_action(e, action, args.get("response", ""), event_resources)
+                            await self.event_action(e, action, args.get("response", ""), self.robot_resources)
                 result = {"responded": True}
 
         return result  
@@ -324,10 +340,11 @@ class eventManager(Sensor, Reconfigurable):
     async def get_readings(
         self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Mapping[str, SensorReading]:
-        ret = { "state": {}, "mode": self.mode }
+        # No conversion needed since mode is already a string
+        ret: Dict[str, Any] = { "state": {}, "mode": self.mode }
         include_dot = False
         graph: pydot.Graph
-        if "include_dot" in extra:
+        if extra is not None and "include_dot" in extra:
             include_dot = extra["include_dot"]
         if include_dot:
             graph = pydot.Dot("my_graph", graph_type="digraph", bgcolor="white", fontname="Courier", fontsize="12pt")
@@ -335,12 +352,10 @@ class eventManager(Sensor, Reconfigurable):
         event_number = 0
         for e in self.event_states:
             # if this is a call from data management, only store events once while they are in 'triggered' or 'actioning' state
-            if from_dm_from_extra(extra):
+            if from_dm_from_extra(dict(extra) if extra is not None else None):
                 if (e.state == 'triggered') or (e.state == 'actioning'):
                     if e.name in self.dm_sent_status and self.dm_sent_status[e.name] == e.last_triggered:
                         continue
-                    else:
-                        self.dm_sent_status[e.name] = e.last_triggered
                 else:
                     continue
 
@@ -349,7 +364,7 @@ class eventManager(Sensor, Reconfigurable):
                 }
             
             if e.last_triggered > 0:
-                ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp( int(e.last_triggered), timezone.utc).isoformat() + 'Z'
+                ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp(e.last_triggered, timezone.utc).isoformat() + 'Z'
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
                 ret["state"][e.name]["triggered_camera"] = e.triggered_camera
                 ret["state"][e.name]["triggered_rules"] = e.triggered_rules
@@ -387,7 +402,7 @@ class eventManager(Sensor, Reconfigurable):
                     "response_match": a.response_match
                 }
                 if a.taken:
-                    a_ret["when"] = datetime.fromtimestamp( int(a.last_taken), timezone.utc).isoformat() + 'Z'
+                    a_ret["when"] = datetime.fromtimestamp(a.last_taken, timezone.utc).isoformat() + 'Z'
                 actions.append( a_ret )
 
                 if include_dot:
@@ -409,20 +424,20 @@ class eventManager(Sensor, Reconfigurable):
 
                 graph.add_subgraph(layer)
 
-        if from_dm_from_extra(extra) and len(ret["state"]) == 0:
+        if from_dm_from_extra(dict(extra) if extra is not None else None) and len(ret["state"]) == 0:
             raise NoCaptureToStoreError()
         
         if include_dot:
             ret["dot"] = graph.to_string()
         return ret
     
-def layer_color (state, state_node):
+def layer_color(state: str, state_node: str) -> str:
     if state == state_node:
         return "red"
     else:
         return "black"
 
-def iso8601_to_timestamp(iso8601_string):
+def iso8601_to_timestamp(iso8601_string: str) -> float:
     # Regular expression to match ISO8601 format
     iso8601_regex = r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$"
     match = re.match(iso8601_regex, iso8601_string)

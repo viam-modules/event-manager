@@ -1,5 +1,6 @@
 import bson
 import asyncio
+from typing import Dict, Any, List, Optional, Union, TypeVar, Tuple, cast
 
 from PIL import Image
 from viam.proto.app.data import Filter
@@ -9,12 +10,21 @@ from viam.app.viam_client import ViamClient
 from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
 from viam.proto.app.data import BinaryID, Order
 from .globals import getParam
-from typing import cast
+from . import events
 from datetime import datetime, timedelta, timezone
 
 import io
 
-async def request_capture(event, resources:dict):
+async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Request video capture for an event
+    
+    Args:
+        event: The event that triggered capture
+        resources: Dictionary of available resources
+        
+    Returns:
+        Result of the capture command or None if there was an error
+    """
     vs = _get_video_store(event.video_capture_resource, resources)
 
     await asyncio.sleep(event.event_video_capture_padding_secs)
@@ -31,7 +41,8 @@ async def request_capture(event, resources:dict):
     # Format the time minus X*2
     formatted_time_minus = time_minus.strftime('%Y-%m-%d_%H-%M-%S')
 
-    store_args = { "command": "save",
+    store_args: Dict[str, Any] = { 
+        "command": "save",
         "from": formatted_time_minus,
         "to": formatted_time_current,
         "metadata": _label(event.name, event.video_capture_resource, event.last_triggered),
@@ -39,21 +50,40 @@ async def request_capture(event, resources:dict):
     }
     
     try:
-        store_result = await vs.do_command( store_args )
-        return store_result
+        store_result = await vs.do_command(store_args)
+        return cast(Dict[str, Any], store_result)
     except Exception as e:
         getParam('logger').error(e)
+        return None
 
-async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
+async def get_triggered_cloud(
+    event_manager_name: Optional[str]=None, 
+    organization_id: Optional[str]=None, 
+    event_name: Optional[str]=None, 
+    num: int=5, 
+    app_client: Optional[ViamClient]=None
+) -> Union[List[Dict[str, Any]], Dict[str, str]]:
+    """Get triggered events from the cloud
+    
+    Args:
+        event_manager_name: Name of the event manager
+        organization_id: ID of the organization
+        event_name: Optional name of a specific event to filter by
+        num: Maximum number of events to retrieve
+        app_client: Viam client for cloud access
+        
+    Returns:
+        List of triggered events or error dictionary
+    """
     if (app_client): 
-        filter_args = {}
-        matched = []
-        matched_index_by_dt = {}
+        filter_args: Dict[str, Any] = {}
+        matched: List[Dict[str, Any]] = []
+        matched_index_by_dt: Dict[str, int] = {}
 
         # first get recent tabular data, as this is the "data of record"
         # Note: the assumption is made that no other tabular data is being stored for this component
-        query = []
-        match = {"component_name": event_manager_name}
+        query: List[bytes] = []
+        match: Dict[str, Any] = {"component_name": event_manager_name}
         if event_name != None:
             match[f"data.readings.state.{event_name}" ] = { "$exists": True }
             query.append(bson.encode({ "$match": { f"data.readings.state.{event_name}" : { "$exists": True }}}))
@@ -70,20 +100,30 @@ async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=No
                     triggered_camera = ""
                     if "triggered_camera" in state[reading]:
                         triggered_camera = state[reading]["triggered_camera"]
-                    matched.append({"event": reading, "time": state[reading]["last_triggered"],
-                                    "location_id": tabular["location_id"], "organization_id": tabular["organization_id"], "triggered_camera": triggered_camera })
+                    matched.append({
+                        "event": reading, 
+                        "time": state[reading]["last_triggered"],
+                        "location_id": tabular["location_id"], 
+                        "organization_id": tabular["organization_id"], 
+                        "triggered_camera": triggered_camera 
+                    })
                 if len(matched) == num:
                     break
             if len(matched) == num:
                 break
 
         # now try to match any videos based on event timestamp
-        videos = await app_client.data_client.binary_data_by_filter(filter=Filter(**filter_args), include_binary_data=False, limit=100, sort_order=Order.ORDER_DESCENDING)
+        videos = await app_client.data_client.binary_data_by_filter(
+            filter=Filter(**filter_args), 
+            include_binary_data=False, 
+            limit=100, 
+            sort_order=Order.ORDER_DESCENDING
+        )
         for video in videos[0]:
             getParam('logger').debug(video.metadata)
             spl = video.metadata.file_name.split('--')
             if len(spl) > 3:
-                vtime = datetime.fromtimestamp( int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
+                vtime = datetime.fromtimestamp(int(float(spl[3].replace('.mp4',''))), timezone.utc).isoformat() + 'Z'
                 if vtime in matched_index_by_dt:
                     getParam('logger').debug(video)
                     matched[matched_index_by_dt[vtime]]["video_id"] = video.metadata.id
@@ -91,20 +131,65 @@ async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=No
     else:
         return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
 
-# deletes video from the cloud
-async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:str=None, app_client:ViamClient=None):
-    if (app_client): 
-        resp = await app_client.data_client.delete_binary_data_by_ids(binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)])
-        return resp
+async def delete_from_cloud(
+    id: Optional[str]=None, 
+    organization_id: Optional[str]=None, 
+    location_id: Optional[str]=None, 
+    app_client: Optional[ViamClient]=None
+) -> Dict[str, Any]:
+    """Delete a video from the cloud
+    
+    Args:
+        id: ID of the video to delete
+        organization_id: ID of the organization
+        location_id: ID of the location
+        app_client: Viam client for cloud access
+        
+    Returns:
+        Response from delete operation or error dictionary
+    """
+    if app_client and id and organization_id and location_id:
+        resp = await app_client.data_client.delete_binary_data_by_ids(
+            binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)]
+        )
+        return cast(Dict[str, Any], resp)
     else:
         return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
-def _name_clean(string):
+
+def _name_clean(string: str) -> str:
+    """Clean a string by replacing spaces with underscores
+    
+    Args:
+        string: String to clean
+        
+    Returns:
+        Cleaned string
+    """
     return string.replace(' ','_')
 
-def _label(event_name, cam_name, last_triggered):
+def _label(event_name: str, cam_name: str, last_triggered: float) -> str:
+    """Create a label for a video capture
+    
+    Args:
+        event_name: Name of the event
+        cam_name: Name of the camera
+        last_triggered: Timestamp when the event was triggered
+        
+    Returns:
+        Formatted label string
+    """
     return _name_clean(f"SAVCAM--{event_name}--{cam_name}--{str(last_triggered)}")
 
-def _get_video_store(name, resources) -> Generic:
+def _get_video_store(name: str, resources: Dict[str, Any]) -> Generic:
+    """Get the video store resource
+    
+    Args:
+        name: Name of the video store
+        resources: Dictionary of available resources
+        
+    Returns:
+        Video store resource
+    """
     # newer versions of video-store resource are Generic, older are Camera
     is_generic = True
     resource_name = GenericClient.get_resource_name(name)

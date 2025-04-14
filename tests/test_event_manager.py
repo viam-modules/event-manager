@@ -11,7 +11,7 @@ import json
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.eventManager import eventManager, Modes
+from src.eventManager import eventManager
 from src.events import Event
 from src.actions import Action
 from viam.utils import SensorReading

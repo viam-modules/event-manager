@@ -10,13 +10,13 @@ sys.path.append(str(Path(__file__).parent.parent))
 # Import test modules
 from tests.test_events import TestEvent
 from tests.test_rules import TestRules, TestRuleEvaluation
-from tests.test_event_manager import TestEventManager
-from tests.test_notifications import TestNotifications
+from tests.test_event_manager import TestEventManagerBasics
+from tests.test_notifications import TestNotificationClasses
 from tests.test_rules_evaluation import (
     TestRuleTrackerInitialization, 
     TestGetValueByDotNotation,
     TestLogicalTrigger,
-    TestRuleEvaluation
+    TestRuleEvaluation as TestRuleEvaluationExt
 )
 from tests.test_classifier_rules import (
     TestClassifierRuleEvaluation,
@@ -36,14 +36,14 @@ def create_test_suite():
     test_suite.addTests(loader.loadTestsFromTestCase(TestEvent))
     test_suite.addTests(loader.loadTestsFromTestCase(TestRules))
     test_suite.addTests(loader.loadTestsFromTestCase(TestRuleEvaluation))
-    test_suite.addTests(loader.loadTestsFromTestCase(TestEventManager))
-    test_suite.addTests(loader.loadTestsFromTestCase(TestNotifications))
+    test_suite.addTests(loader.loadTestsFromTestCase(TestEventManagerBasics))
+    test_suite.addTests(loader.loadTestsFromTestCase(TestNotificationClasses))
     
     # Add rule evaluation tests
     test_suite.addTests(loader.loadTestsFromTestCase(TestRuleTrackerInitialization))
     test_suite.addTests(loader.loadTestsFromTestCase(TestGetValueByDotNotation))
     test_suite.addTests(loader.loadTestsFromTestCase(TestLogicalTrigger))
-    test_suite.addTests(loader.loadTestsFromTestCase(TestRuleEvaluation))
+    test_suite.addTests(loader.loadTestsFromTestCase(TestRuleEvaluationExt))
     
     # Add classifier and error handling tests
     test_suite.addTests(loader.loadTestsFromTestCase(TestClassifierRuleEvaluation))
