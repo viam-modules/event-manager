@@ -437,7 +437,6 @@ class eventManager(Sensor, Reconfigurable):
         if include_dot:
             ret["dot"] = graph.to_string()
 
-        self.logger.info(ret)
         return ret
     
 def layer_color(state: str, state_node: str) -> str:
