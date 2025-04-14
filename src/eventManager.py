@@ -366,7 +366,7 @@ class eventManager(Sensor, Reconfigurable):
                 }
             
             if e.last_triggered > 0:
-                ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp(e.last_triggered, timezone.utc).isoformat() + 'Z'
+                ret["state"][e.name]["last_triggered"] = datetime.fromtimestamp(int(e.last_triggered), timezone.utc).isoformat() + 'Z'
                 ret["state"][e.name]["triggered_label"] = e.triggered_label
                 ret["state"][e.name]["triggered_camera"] = e.triggered_camera
                 
@@ -411,7 +411,7 @@ class eventManager(Sensor, Reconfigurable):
                     "response_match": a.response_match
                 }
                 if a.taken:
-                    a_ret["when"] = datetime.fromtimestamp(a.last_taken, timezone.utc).isoformat() + 'Z'
+                    a_ret["when"] = datetime.fromtimestamp(int(a.last_taken), timezone.utc).isoformat() + 'Z'
                 actions.append( a_ret )
 
                 if include_dot:
