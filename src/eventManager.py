@@ -108,7 +108,7 @@ class eventManager(Sensor, Reconfigurable):
             self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
 
         dict_events = attributes.get("events")
-        if dict_events is not None and (isinstance(dict_events, list) or isinstance(dict_events, dict)):
+        if dict_events is not None and isinstance(dict_events, list):
             for e in dict_events:
                 if isinstance(e, dict):
                     event = events.Event(**e)
