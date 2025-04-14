@@ -27,4 +27,4 @@ async def do_action(event:Event, action:Action, resources):
     await call_method(resources, action.resource, action.method, action.payload, event)
 
     action.taken = True
-    action.last_taken = time.time()
+    action.last_taken = int(time.time())

@@ -1,5 +1,6 @@
 import bson
 import asyncio
+from typing import Dict, Any, List, Optional
 
 from PIL import Image
 from viam.proto.app.data import Filter
@@ -44,16 +45,16 @@ async def request_capture(event, resources:dict):
     except Exception as e:
         getParam('logger').error(e)
 
-async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=None, event_name:str=None, num:int=5, app_client:ViamClient=None):
+async def get_triggered_cloud(event_manager_name: Optional[str]=None, organization_id: Optional[str]=None, event_name: Optional[str]=None, num: int=5, app_client: Optional[ViamClient]=None):
     if (app_client): 
-        filter_args = {}
-        matched = []
-        matched_index_by_dt = {}
+        filter_args: Dict[str, Any] = {}
+        matched: List[Dict[str, Any]] = []
+        matched_index_by_dt: Dict[str, int] = {}
 
         # first get recent tabular data, as this is the "data of record"
         # Note: the assumption is made that no other tabular data is being stored for this component
         query = []
-        match = {"component_name": event_manager_name}
+        match: Dict[str, Any] = {"component_name": event_manager_name}
         if event_name != None:
             match[f"data.readings.state.{event_name}" ] = { "$exists": True }
             query.append(bson.encode({ "$match": { f"data.readings.state.{event_name}" : { "$exists": True }}}))
@@ -92,12 +93,15 @@ async def get_triggered_cloud(event_manager_name:str=None,organization_id:str=No
         return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
 
 # deletes video from the cloud
-async def delete_from_cloud(id:str=None, organization_id:str=None, location_id:str=None, app_client:ViamClient=None):
-    if (app_client): 
-        resp = await app_client.data_client.delete_binary_data_by_ids(binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)])
+async def delete_from_cloud(id: Optional[str]=None, organization_id: Optional[str]=None, location_id: Optional[str]=None, app_client: Optional[ViamClient]=None):
+    if app_client and id and organization_id and location_id:
+        resp = await app_client.data_client.delete_binary_data_by_ids(
+            binary_ids=[BinaryID(file_id=id, organization_id=organization_id, location_id=location_id)]
+        )
         return resp
     else:
         return { "error": "app_api_key and app_api_key_id as well as data capture on GetReadings() for this module must be configured" }
+
 def _name_clean(string):
     return string.replace(' ','_')
 

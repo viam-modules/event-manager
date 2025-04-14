@@ -1,10 +1,11 @@
 from PIL import Image
+from typing import Any, Optional
 
 class NotificationSMS():
     type: str="sms"
     to: str
     preset: str
-    image: Image
+    image: Optional[Image.Image] = None
     include_image: bool = True
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -14,7 +15,7 @@ class NotificationEmail():
     type: str="email"
     to: str
     preset: str
-    image: Image
+    image: Optional[Image.Image] = None
     include_image: bool = False
     
     def __init__(self, **kwargs):
@@ -24,7 +25,7 @@ class NotificationEmail():
 class NotificationWebhookGET():
     type: str="webhook_get"
     url: str
-    image: Image
+    image: Optional[Image.Image] = None
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
