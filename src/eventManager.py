@@ -356,6 +356,8 @@ class eventManager(Sensor, Reconfigurable):
                 if (e.state == 'triggered') or (e.state == 'actioning'):
                     if e.name in self.dm_sent_status and self.dm_sent_status[e.name] == e.last_triggered:
                         continue
+                    else:
+                        self.dm_sent_status[e.name] = e.last_triggered
                 else:
                     continue
 
