@@ -2,14 +2,16 @@ import urllib.request
 import base64
 from io import BytesIO
 from datetime import datetime, timezone
+from typing import Dict, Any, List, Union, Optional
+from PIL import Image
 from . import events
 from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
 from .globals import getParam
 
 
-async def notify(event:events.Event, notification:NotificationEmail|NotificationSMS|NotificationWebhookGET, resources):
+async def notify(event: events.Event, notification: Union[NotificationEmail, NotificationSMS, NotificationWebhookGET], resources: Dict[str, Any]) -> None:
 
-    notification_args = {"command": "send", "preset": notification.preset if hasattr(notification, "preset") else None, 
+    notification_args: Dict[str, Any] = {"command": "send", "preset": notification.preset if hasattr(notification, "preset") else None, 
                             "template_vars": {
                                 "event_name": event.name, 
                                 "triggered_label": event.triggered_label, 
@@ -68,11 +70,11 @@ async def notify(event:events.Event, notification:NotificationEmail|Notification
         
     return   
 
-async def check_sms_response(notifications:list[NotificationEmail|NotificationSMS|NotificationWebhookGET], since, resources):
+async def check_sms_response(notifications: List[Union[NotificationEmail, NotificationSMS, NotificationWebhookGET]], since: float, resources: Dict[str, Any]) -> str:
     formatted_time = datetime.fromtimestamp(since, timezone.utc).strftime('%d/%m/%Y %H:%M:%S')
     for n in notifications:
         if n.type == "sms" and hasattr(n, "to"):
-            sms_args = { "command": "get", "number": 1, "from": n.to, "time_start": formatted_time }
+            sms_args: Dict[str, Any] = { "command": "get", "number": 1, "from": n.to, "time_start": formatted_time }
             getParam('logger').debug(sms_args)
             res = await resources['sms_module'].do_command(sms_args)
             if len(res["messages"]):

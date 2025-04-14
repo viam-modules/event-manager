@@ -155,7 +155,7 @@ class eventManager(Sensor, Reconfigurable):
             self.stop_events.append(stop_event)
             asyncio.create_task(self.event_check_loop(event, stop_event))
     
-    async def event_check_loop(self, event:events.Event, stop_event):
+    async def event_check_loop(self, event:events.Event, stop_event: asyncio.Event):
         # make the resource logger available globally
         globals.setParam('logger',self.logger)
 
@@ -285,7 +285,7 @@ class eventManager(Sensor, Reconfigurable):
 
         self.logger.info("Ending event check loop for " + event.name)
     
-    async def event_action(self, event, action, message, event_resources):
+    async def event_action(self, event: events.Event, action: actions.Action, message: str, event_resources: Dict[str, Any]):
         should_action = await actions.eval_action(event, action, message)
         if should_action:
             if message != "":
@@ -431,13 +431,13 @@ class eventManager(Sensor, Reconfigurable):
             ret["dot"] = graph.to_string()
         return ret
     
-def layer_color (state, state_node):
+def layer_color(state: str, state_node: str) -> str:
     if state == state_node:
         return "red"
     else:
         return "black"
 
-def iso8601_to_timestamp(iso8601_string):
+def iso8601_to_timestamp(iso8601_string: str) -> float:
     # Regular expression to match ISO8601 format
     iso8601_regex = r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$"
     match = re.match(iso8601_regex, iso8601_string)

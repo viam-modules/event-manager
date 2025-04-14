@@ -1,5 +1,6 @@
 import re
 import time
+from typing import Dict, Any
 
 from .globals import getParam
 from .events import Event
@@ -11,7 +12,7 @@ def flip_action_status(event:Event, direction:bool):
     for action in event.actions:
         action.taken = direction
 
-async def eval_action(event:Event, action:Action, sms_message):
+async def eval_action(event:Event, action:Action, sms_message: str):
     if action.taken:
         return False
     if (sms_message != "") and (action.response_match != ""):
@@ -23,7 +24,7 @@ async def eval_action(event:Event, action:Action, sms_message):
             return True
     return False
 
-async def do_action(event:Event, action:Action, resources):
+async def do_action(event:Event, action:Action, resources: Dict[str, Any]):
     await call_method(resources, action.resource, action.method, action.payload, event)
 
     action.taken = True

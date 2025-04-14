@@ -1,7 +1,7 @@
 import re
 import asyncio
 from datetime import datetime
-from typing import cast, Dict, Any
+from typing import cast, Dict, Any, List, Union, Optional, TypeVar, Callable, Tuple, overload
 from PIL import Image
 from . import logic
 from .resourceUtils import call_method
@@ -14,7 +14,7 @@ class TimeRange():
     start_hour: int
     end_hour: int
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
@@ -26,7 +26,7 @@ class RuleDetector():
     confidence_pct: float
     inverse_pause_secs: int
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
 class RuleClassifier():
@@ -37,7 +37,7 @@ class RuleClassifier():
     confidence_pct: float
     inverse_pause_secs: int
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
@@ -48,7 +48,7 @@ class RuleTracker():
     inverse_pause_secs: int
     pause_on_known_secs: int
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
@@ -63,13 +63,13 @@ class RuleCall():
     result_value: Any
     inverse_pause_secs: int
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
 class RuleTime():
     type: str="time"
     ranges: list[TimeRange]
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             if isinstance(value, list):
                 self.__dict__[key] = []
@@ -78,7 +78,9 @@ class RuleTime():
             else:
                 self.__dict__[key] = value
 
-async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCall, resources):
+RuleType = Union[RuleTime, RuleDetector, RuleClassifier, RuleTracker, RuleCall]
+
+async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]:
     response: Dict[str, Any] = { "triggered" : False }
     match rule.type:
         case "time":
@@ -121,7 +123,7 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 tracker = _get_vision_service(rule.tracker, resources)
                 # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
                 all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
-                approved_status = []
+                approved_status: List[bool] = []
 
                 current = await tracker.do_command({"list_current": True})
                 
@@ -198,18 +200,18 @@ async def eval_rule(rule:RuleTime|RuleDetector|RuleClassifier|RuleTracker|RuleCa
                 getParam('logger').error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
     return response
 
-def logical_trigger(logic_type, list):
+def logical_trigger(logic_type: str, list: List[bool]) -> bool:
     logic_function = getattr(logic, logic_type)
     return logic_function(list)
 
-def _get_vision_service(name, resources) -> Vision:
+def _get_vision_service(name: str, resources: Dict[str, Any]) -> Vision:
     actual = resources['_deps'][VisionClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)
     return resources[actual]
 
-def get_value_by_dot_notation(data, path):
+def get_value_by_dot_notation(data: Any, path: str) -> Optional[Any]:
     """Access a nested dictionary value using dot notation."""
 
     keys = path.split('.')
