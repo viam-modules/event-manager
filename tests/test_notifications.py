@@ -131,8 +131,9 @@ class TestNotify:
             assert call_args["template_vars"]["triggered_label"] == "person"
             assert call_args["template_vars"]["triggered_camera"] == "front_door"
             assert "image_base64" in call_args["template_vars"]
-            assert call_args["media_base64"] is not None
-            assert call_args["media_mime_type"] == "image/jpeg"
+            assert "media_mime_type" in call_args["template_vars"]
+            # Email should NOT have media_base64 directly in the notification args
+            assert "media_base64" not in call_args
     
     async def test_notify_email_without_image(self, mock_event, mock_resources):
         """Test sending an email notification without an image."""

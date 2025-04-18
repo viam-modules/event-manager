@@ -33,10 +33,9 @@ async def notify(event: events.Event, notification: Union[NotificationEmail, Not
             if "email_module" in resources:
                 notification_resource = resources['email_module']
                 if hasattr(notification, "include_image") and notification.include_image:
-                    template_vars = notification_args.get("template_vars", {})
-                    if isinstance(template_vars, dict):
-                        template_vars["image_base64"] = img_base64_str
-                        notification_args["template_vars"] = template_vars
+                    if 'img_base64_str' in locals():
+                        notification_args["template_vars"]["image_base64"] = img_base64_str
+                        notification_args["template_vars"]["media_mime_type"] = "image/jpeg"
             else:
                 getParam('logger').warning("No email module defined, can't send notification email")
                 return
@@ -44,8 +43,10 @@ async def notify(event: events.Event, notification: Union[NotificationEmail, Not
             if "sms_module" in resources:
                 notification_resource = resources['sms_module']
                 if hasattr(notification, "include_image") and notification.include_image:
-                    notification_args["media_base64"] = img_base64_str
-                    notification_args["media_mime_type"] =  "image/jpeg"
+                    # Only add media_base64 if img_base64_str was created
+                    if 'img_base64_str' in locals():
+                        notification_args["media_base64"] = img_base64_str
+                        notification_args["media_mime_type"] = "image/jpeg"
             else:
                 getParam('logger').warning("No SMS module defined, can't send notification SMS")
                 return
@@ -54,13 +55,6 @@ async def notify(event: events.Event, notification: Union[NotificationEmail, Not
                 contents = urllib.request.urlopen(notification.url).read()
             return
     
-    if hasattr(notification, "include_image") and notification.include_image and notification.image is not None:
-        buffered = BytesIO()
-        notification.image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("ascii")
-        notification_args["media_base64"] = img_str
-        notification_args["media_mime_type"] =  "image/jpeg"
-
     try:
         res = await notification_resource.do_command(notification_args)
         if "error" in res:

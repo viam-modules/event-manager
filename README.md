@@ -465,7 +465,11 @@ The following are also sent in a *template_vars* object for sms and email:
 
 "triggered_camera" -  For computer vision triggers, the triggered camera.
 
-"image_base64" - For computer vision triggers, the base64 string representation of the image.
+The following are also sent in the *template_vars* object for email only (if_include_image is true):
+
+"media_base64" - For computer vision triggers, the base64 string representation of the image.
+
+"media_mime_type" - For computer vision triggers, the MIME type of the image.
 
 #### actions
 

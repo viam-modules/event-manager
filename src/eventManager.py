@@ -163,10 +163,10 @@ class eventManager(Sensor, Reconfigurable):
         event_resources = copy.deepcopy(self.robot_resources)
         event_resources['_deps'] = self.deps
 
-        if event_resources["sms_module_name"] != "":
+        if "sms_module_name" in event_resources and event_resources["sms_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["sms_module_name"])]
             event_resources['sms_module'] = cast(GenericService, actual)
-        if event_resources["email_module_name"] != "":
+        if "email_module_name" in event_resources and event_resources["email_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["email_module_name"])]
             event_resources['email_module'] = cast(GenericService, actual)
 
