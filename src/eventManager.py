@@ -24,6 +24,10 @@ from . import events, rules, notifications, triggered, actions, globals
 import time
 import copy
 import asyncio
+import sqlite3
+import os
+import json
+import pickle
 from datetime import datetime, timezone, timedelta
 import re
 import pydot  # type: ignore
@@ -50,6 +54,8 @@ class eventManager(Sensor, Reconfigurable):
     dm_sent_status: Dict[str, float] = {}
     event_states: list[events.Event] = []
     stop_events: list[asyncio.Event] = []
+    back_state_to_disk: bool = False
+    db_path: str = ""
 
     # Constructor
     @classmethod
@@ -77,14 +83,148 @@ class eventManager(Sensor, Reconfigurable):
             deps.append(email_module)
         return deps
 
+    def _init_db(self):
+        """Initialize the SQLite database if backup to disk is enabled"""
+        if not self.back_state_to_disk:
+            return
+            
+        # Ensure the db path exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
+        # Create the database connection and table
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create the table for event states if it doesn't exist
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS event_states (
+            id INTEGER PRIMARY KEY,
+            event_name TEXT UNIQUE,
+            state_data BLOB
+        )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def _save_event_states(self):
+        """Save event states to SQLite database"""
+        if not self.back_state_to_disk:
+            return
+            
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Clear existing event states before saving new ones
+            cursor.execute("DELETE FROM event_states")
+            
+            # Save each event state
+            for event in self.event_states:
+                # Use pickle to serialize the event object
+                event_data = pickle.dumps(event)
+                cursor.execute(
+                    "INSERT INTO event_states (event_name, state_data) VALUES (?, ?)",
+                    (event.name, event_data)
+                )
+                
+            conn.commit()
+            conn.close()
+            self.logger.debug(f"Saved {len(self.event_states)} event states to disk")
+        except Exception as e:
+            self.logger.error(f"Error saving event states to disk: {e}")
+            self.logger.error(traceback.format_exc())
+    
+    def _restore_event_states(self):
+        """Restore event states from SQLite database"""
+        if not self.back_state_to_disk:
+            return
+            
+        try:
+            if not os.path.exists(self.db_path):
+                self.logger.info(f"No previous state database found at {self.db_path}")
+                return
+                
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Query existing event states
+            cursor.execute("SELECT event_name, state_data FROM event_states")
+            results = cursor.fetchall()
+            
+            if not results:
+                self.logger.info("No previous event states found in database")
+                conn.close()
+                return
+                
+            # Get current event names for comparison
+            current_event_names = {e.name for e in self.event_states}
+            
+            # Create a mapping of event name to event object for the current events
+            event_map = {e.name: e for e in self.event_states}
+            
+            # Process each saved event state
+            for event_name, event_data in results:
+                # Only restore events that are still in the configuration
+                if event_name in current_event_names:
+                    # Get the fresh configuration for this event
+                    fresh_event = event_map[event_name]
+                    
+                    # Restore the saved state using pickle
+                    saved_event = pickle.loads(event_data)
+                    
+                    # Transfer just the runtime state, not configuration
+                    fresh_event.is_triggered = saved_event.is_triggered
+                    fresh_event.last_triggered = saved_event.last_triggered
+                    fresh_event.state = saved_event.state
+                    fresh_event.sequence_count_current = saved_event.sequence_count_current
+                    fresh_event.paused_until = getattr(saved_event, 'paused_until', 0)
+                    fresh_event.pause_reason = saved_event.pause_reason
+                    fresh_event.actions_paused = saved_event.actions_paused
+                    fresh_event.triggered_camera = saved_event.triggered_camera
+                    fresh_event.triggered_label = saved_event.triggered_label
+                    fresh_event.triggered_rules = saved_event.triggered_rules
+                    
+                    # Transfer rule reset state attributes
+                    fresh_event.require_rule_reset = getattr(saved_event, 'require_rule_reset', False)
+                    fresh_event.rule_reset_count = getattr(saved_event, 'rule_reset_count', 1)
+                    fresh_event.rule_reset_counter = getattr(saved_event, 'rule_reset_counter', 0)
+                    
+                    # For actions, only restore taken status
+                    if hasattr(fresh_event, 'actions') and hasattr(saved_event, 'actions'):
+                        for i, action in enumerate(fresh_event.actions):
+                            if i < len(saved_event.actions):
+                                action.taken = saved_event.actions[i].taken
+                                action.last_taken = getattr(saved_event.actions[i], 'last_taken', 0)
+                    
+                    self.logger.info(f"Restored state for event: {event_name}")
+                
+            conn.close()
+            self.logger.info(f"State restoration complete")
+        except Exception as e:
+            self.logger.error(f"Error restoring event states from disk: {e}")
+            self.logger.error(traceback.format_exc())
+            # Continue with fresh state if restoration fails
+
     # Handles attribute reconfiguration
     def reconfigure(self, config: ModuleConfig, dependencies: Mapping[ResourceName, ResourceBase]):        
         self.name = config.name
 
+        attributes = struct_to_dict(config.attributes)
+
+        # Set up database backup option
+        self.back_state_to_disk = bool(attributes.get("back_state_to_disk", False))
+        data_dir = str(attributes.get("data_directory", "/tmp/viam/event_manager"))
+        self.db_path = os.path.join(data_dir, f"{self.name}_events.db")
+        
+        # Initialize database if needed
+        self._init_db()
+        
+        # Store previous event states for potential restoration
+        old_event_states = self.event_states
+        
         # reset event states
         self.event_states = []
-
-        attributes = struct_to_dict(config.attributes)
 
         # Set mode directly from attributes
         mode = "inactive"  # Default if not provided
@@ -118,20 +258,26 @@ class eventManager(Sensor, Reconfigurable):
         self.deps = dependencies
         self.robot_resources['resources'] = attributes.get("resources")
 
-        sms_module = config.attributes.fields["sms_module"].string_value or ""
-        if sms_module != "":
-            self.robot_resources['sms_module_name'] = sms_module
-        email_module = config.attributes.fields["email_module"].string_value or ""
-        if email_module != "":
-            self.robot_resources['email_module_name'] = email_module
+        if "sms_module_name" in self.robot_resources and self.robot_resources["sms_module_name"] != "":
+            actual = self.robot_resources['_deps'][GenericService.get_resource_name(self.robot_resources["sms_module_name"])]
+            self.robot_resources['sms_module'] = cast(GenericService, actual)
+        if "email_module_name" in self.robot_resources and self.robot_resources["email_module_name"] != "":
+            actual = self.robot_resources['_deps'][GenericService.get_resource_name(self.robot_resources["email_module_name"])]
+            self.robot_resources['email_module'] = cast(GenericService, actual)
         
         self.api_key = config.attributes.fields["app_api_key"].string_value or ''
         self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
         
+        # Stop any running events
         while self.stop_events:
             stop_event = self.stop_events.pop()
             stop_event.set()
-
+            
+        # Restore event states from disk if enabled
+        if self.back_state_to_disk:
+            self._restore_event_states()
+            
+        # Start event processing
         asyncio.ensure_future(self.manage_events())
         return
     
@@ -171,6 +317,8 @@ class eventManager(Sensor, Reconfigurable):
             event_resources['email_module'] = cast(GenericService, actual)
 
         self.logger.info("Starting event check loop for " + event.name)
+        last_state_save_time = time.time()
+        
         while not stop_event.is_set():
             try:
                 if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
@@ -178,7 +326,10 @@ class eventManager(Sensor, Reconfigurable):
                     event.state = "monitoring"
 
                     # reset event and actions before evaluating
-                    event.is_triggered = False
+                    # Only reset is_triggered if we're not waiting for rule reset
+                    if not (event.is_triggered and hasattr(event, 'require_rule_reset') and event.require_rule_reset and 
+                            (not hasattr(event, 'rule_reset_counter') or event.rule_reset_counter < getattr(event, 'rule_reset_count', 1))):
+                        event.is_triggered = False
                     event.actions_paused = False
                     event.pause_reason = ""
 
@@ -219,10 +370,33 @@ class eventManager(Sensor, Reconfigurable):
                         
                         rule_results.append(result)
 
-                    if (event.state != "paused") and (rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True):
+                    # Check if rules evaluated to true
+                    rules_triggered = (event.state != "paused") and (rules.logical_trigger(event.rule_logic_type, [res['triggered'] for res in rule_results]) == True)
+                    
+                    # Handle rule reset counters if we're in reset mode
+                    if event.is_triggered and hasattr(event, 'require_rule_reset') and event.require_rule_reset:
+                        if not rules_triggered:
+                            # Rules evaluated to false, increment counter
+                            if not hasattr(event, 'rule_reset_counter'):
+                                event.rule_reset_counter = 1
+                            else:
+                                event.rule_reset_counter += 1
+                            
+                            if event.rule_reset_counter >= getattr(event, 'rule_reset_count', 1):
+                                # We've seen enough false evaluations, reset triggered state
+                                self.logger.debug(f"Event {event.name} reset after {event.rule_reset_counter} false evaluations")
+                                event.is_triggered = False
+                                event.rule_reset_counter = 0
+                        else:
+                            # If rules triggered again while waiting for reset, reset the counter
+                            event.rule_reset_counter = 0
+                    
+                    if rules_triggered and not event.is_triggered:
                         event.is_triggered = True
                         event.last_triggered = time.time()
                         event.state = "triggered"
+                        # Reset the rule reset counter 
+                        event.rule_reset_counter = 0
 
                         rule_index = 0
                         triggered_image = None
@@ -250,6 +424,11 @@ class eventManager(Sensor, Reconfigurable):
                             if triggered_image != None:
                                 n.image = triggered_image
                             await notifications.notify(event, n, event_resources)
+                            
+                        # Save state after significant change
+                        if self.back_state_to_disk:
+                            self._save_event_states()
+                            last_state_save_time = time.time()
 
                     # try to respect detection_hz as desired speed of detections
                     elapsed = (datetime.now() - start_time).total_seconds()
@@ -268,10 +447,21 @@ class eventManager(Sensor, Reconfigurable):
                         sms_message = await notifications.check_sms_response(event.notifications, event.last_triggered, event_resources)
                     for action in event.actions:
                         await self.event_action(event, action, sms_message, event_resources)
+                    
+                    # Save state after actions are taken
+                    if self.back_state_to_disk and time.time() - last_state_save_time > 60:  # Save at most once per minute
+                        self._save_event_states()
+                        last_state_save_time = time.time()
+                        
                     await asyncio.sleep(1)
                 else:
                     # sleep if we know we are not currently checking for this event
                     await asyncio.sleep(.5)
+                    
+                    # Periodically save state if enabled (once every 5 minutes)
+                    if self.back_state_to_disk and time.time() - last_state_save_time > 300:
+                        self._save_event_states()
+                        last_state_save_time = time.time()
 
                 # check if mode override is expired
                 if self.mode_overridden != "" and self.mode_override_until is not None and (time.time() >= self.mode_override_until):
@@ -284,6 +474,10 @@ class eventManager(Sensor, Reconfigurable):
                 await asyncio.sleep(1)
 
         self.logger.info("Ending event check loop for " + event.name)
+        
+        # Save final state when stopping
+        if self.back_state_to_disk:
+            self._save_event_states()
     
     async def event_action(self, event: events.Event, action: actions.Action, message: str, event_resources: Dict[str, Any]):
         should_action = await actions.eval_action(event, action, message)

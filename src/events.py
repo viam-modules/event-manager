@@ -26,6 +26,9 @@ class Event():
     triggered_label: str = ""
     trigger_sequence_count: int = 1
     sequence_count_current: int = 0
+    require_rule_reset: bool = False
+    rule_reset_count: int = 1
+    rule_reset_counter: int = 0
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')

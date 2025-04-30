@@ -203,6 +203,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
         "mode": "inactive",
         "until": "2024-11-18T19:05:05Z"
     },
+    "back_state_to_disk": true,
+    "data_directory": "/data/viam/event_manager",
     "app_api_key": "daifdkaddkdfhshfeasw",
     "app_api_key_id": "weygwegqeyygadydagfd",
     "email_module": "shared-alerting:email",
@@ -246,6 +248,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
             "pause_alerting_on_event_secs": 300,
             "detection_hz": 5,
             "trigger_sequence_count": 2,
+            "require_rule_reset": true,
+            "rule_reset_count": 3,
             "rule_logic_type": "AND",
             "rules": [
                 {
@@ -376,6 +380,36 @@ If email notifications are configured, this is required.
 The name of an SMS sending service configured as part of this machine that uses the API format of [this module](https://app.viam.com/module/mcvella/twilio-sms)
 If SMS notifications are configured, this is required.
 
+### back_state_to_disk
+
+*boolean (default: false)*
+
+When enabled, the event manager will persist the state of events to disk using SQLite. This allows the event manager to restore its state after a restart, ensuring that triggered events, paused events, and action statuses are maintained across restarts.
+
+The following state information is persisted for each event:
+
+* Triggered status
+* Last triggered timestamp
+* Current event state (monitoring, triggered, actioning, paused)
+* Pause reason and duration
+* Triggered camera and label information
+* Action statuses and timestamps
+
+State is saved automatically when:
+
+* Events are triggered
+* Actions are taken
+* The event manager is reconfigured
+* Every few minutes during normal operation
+
+If an event is removed from the configuration, its state will not be restored. This ensures that configuration changes are handled safely.
+
+### data_directory
+
+*string (default: "/tmp/viam/event_manager")*
+
+The directory where state data will be stored when `back_state_to_disk` is enabled. The SQLite database will be created as `{name}_events.db` in this directory, where `{name}` is the name of the event manager component.
+
 ### events
 
 *list*
@@ -440,6 +474,23 @@ For example, if *NOR* was set and there were two rules configured that both eval
 How many times in a row an event must be evaluate as true in order to be considered triggered.
 For example, you may want to get 3 detections in a row that it is an unknown person.
 This can help alleviate some false positives.
+
+#### require_rule_reset
+
+*boolean (default false)*
+
+When enabled, an event that has been triggered will not trigger again until:
+1. Its rules evaluate to false for the specified number of times (`rule_reset_count`)
+2. Then subsequently evaluate to true again
+
+This is useful for detecting true state changes rather than continuous states. For example, detecting when someone sits at a desk, then leaves, then returns - rather than continuously triggering while they remain at the desk.
+
+#### rule_reset_count
+
+*integer (default 1)*
+
+Used with `require_rule_reset`. Specifies how many consecutive times the rules must evaluate to false before the event can be re-triggered.
+Higher values can prevent false resets due to momentary fluctuations or detection errors.
 
 #### notifications
 

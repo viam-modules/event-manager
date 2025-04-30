@@ -23,6 +23,7 @@ from tests.test_classifier_rules import (
     TestErrorHandling
 )
 from tests.test_logic import TestLogicFunctions
+from tests.test_state_persistence import TestStatePersistence
 
 def create_test_suite():
     """Create a test suite with all tests"""
@@ -51,6 +52,9 @@ def create_test_suite():
     
     # Add logic function tests
     test_suite.addTests(loader.loadTestsFromTestCase(TestLogicFunctions))
+    
+    # Add state persistence and rule reset tests
+    test_suite.addTests(loader.loadTestsFromTestCase(TestStatePersistence))
     
     return test_suite
 
