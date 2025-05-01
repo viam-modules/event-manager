@@ -8,6 +8,7 @@ from .resourceUtils import call_method
 from .globals import getParam
 from viam.services.vision import VisionClient, Detection, Classification, Vision
 from viam.media.utils.pil import viam_to_pil_image
+from viam.components.camera import CameraClient
 
 
 class TimeRange():
@@ -25,6 +26,7 @@ class RuleDetector():
     class_regex: str
     confidence_pct: float
     inverse_pause_secs: int
+    extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
@@ -36,6 +38,7 @@ class RuleClassifier():
     class_regex: str
     confidence_pct: float
     inverse_pause_secs: int
+    extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
@@ -47,6 +50,7 @@ class RuleTracker():
     tracker: str
     inverse_pause_secs: int
     pause_on_known_secs: int
+    extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
@@ -93,36 +97,56 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
         case "detection":
             if isinstance(rule, RuleDetector):  # Type narrowing
                 detector = _get_vision_service(rule.detector, resources)
-                all = await detector.capture_all_from_camera(rule.camera, return_detections=True, return_image=True)
-                d: Detection
-                if all.detections is not None:
-                    for d in all.detections:
+                
+                # Get the camera component
+                camera = _get_camera_component(rule.camera, resources)
+                
+                # Get an image from the camera
+                image = await camera.get_image(extra=getattr(rule, 'extra', {}))
+                
+                # Get detections using the image
+                detections = await detector.get_detections(image, extra=getattr(rule, 'extra', {}))
+                
+                if detections:
+                    for d in detections:
                         if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
                             getParam('logger').debug("Detection triggered")
                             response["triggered"] = True
-                            if all.image is not None:
-                                response["image"] = viam_to_pil_image(all.image)
+                            response["image"] = viam_to_pil_image(image)
                             response["value"] = d.class_name
                             response["resource"] = rule.camera
         case "classification":
             if isinstance(rule, RuleClassifier):  # Type narrowing
                 classifier = _get_vision_service(rule.classifier, resources)
-                all = await classifier.capture_all_from_camera(rule.camera, return_classifications=True, return_image=True)
-                c: Classification
-                if all.classifications is not None:
-                    for c in all.classifications:
+                
+                # Get the camera component
+                camera = _get_camera_component(rule.camera, resources)
+                
+                # Get an image from the camera
+                image = await camera.get_image(extra=getattr(rule, 'extra', {}))
+                
+                # Get classifications using the image
+                classifications = await classifier.get_classifications(image, count=10, extra=getattr(rule, 'extra', {}))
+                
+                if classifications:
+                    for c in classifications:
                         if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
                             getParam('logger').debug("Classification triggered")
                             response["triggered"] = True
-                            if all.image is not None:
-                                response["image"] = viam_to_pil_image(all.image)
+                            response["image"] = viam_to_pil_image(image)
                             response["value"] = c.class_name
                             response["resource"] = rule.camera
         case "tracker":
             if isinstance(rule, RuleTracker):  # Type narrowing
                 tracker = _get_vision_service(rule.tracker, resources)
                 # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
-                all = await tracker.capture_all_from_camera(rule.camera, return_classifications=False, return_detections=True, return_image=True)
+                all = await tracker.capture_all_from_camera(
+                    rule.camera, 
+                    return_classifications=False, 
+                    return_detections=True, 
+                    return_image=True,
+                    extra=getattr(rule, 'extra', {})
+                )
                 approved_status: List[bool] = []
 
                 current = await tracker.do_command({"list_current": True})
@@ -209,6 +233,13 @@ def _get_vision_service(name: str, resources: Dict[str, Any]) -> Vision:
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)
+    return resources[actual]
+
+def _get_camera_component(name: str, resources: Dict[str, Any]):
+    actual = resources['_deps'][CameraClient.get_resource_name(name)]
+    if resources.get(actual) == None:
+        # initialize if it is not already
+        resources[actual] = cast(CameraClient, actual)
     return resources[actual]
 
 def get_value_by_dot_notation(data: Any, path: str) -> Optional[Any]:

@@ -559,11 +559,28 @@ Any number of rules can be configured for a given event.
 
 *enum detection|classification|tracker|time*
 
-If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
+If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined. The system will first call `get_image()` on the camera component and then use the detector service's `get_detections()` method with that image.
 
-If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined.
+If *type* is **classification**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined. The system will first call `get_image()` on the camera component and then use the classifier service's `get_classifications()` method with that image.
 
-If *type* is **tracker**, a *tracker* vision service, and a *camera* (a configured camera included in *resources*) must be defined. *pause_on_known_secs* may be specified, which is the number of seconds to pause event evaluation if a known person is seen.
+If *type* is **tracker**, a *tracker* vision service, and a *camera* (a configured camera included in *resources*) must be defined. *pause_on_known_secs* may be specified, which is the number of seconds to pause event evaluation if a known person is seen. The tracker rule uses `capture_all_from_camera()` method directly.
+
+For all these vision rule types, an optional *extra* dictionary can be specified. This dictionary is passed as the `extra` parameter to the relevant vision service method calls, allowing additional configuration options to be passed to the vision service.
+
+Example rule with extra parameter:
+```json
+{
+    "type": "detection",
+    "camera": "cam1",
+    "detector": "person_detector",
+    "class_regex": "Person",
+    "confidence_pct": 0.7,
+    "extra": {
+        "threshold": 0.4,
+        "max_detections": 5
+    }
+}
+```
 
 If *type* is **time**, *ranges* must be defined, which is a list of *start_hour* and *end_hour*, which are integers representing the start hour in UTC.
 
