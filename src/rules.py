@@ -23,7 +23,7 @@ class RuleDetector():
     type: str="detection"
     camera: str
     detector: str
-    class_regex: str
+    class_regex: str=".*"
     confidence_pct: float
     inverse_pause_secs: int
     extra: dict = {}
@@ -35,7 +35,7 @@ class RuleClassifier():
     type: str="classification"
     camera: str
     classifier: str
-    class_regex: str
+    class_regex: str=".*"
     confidence_pct: float
     inverse_pause_secs: int
     extra: dict = {}

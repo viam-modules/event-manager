@@ -45,11 +45,13 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection.class_name = "person"
         mock_detection.confidence = 0.8  # Above threshold
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection]
+        mock_image = MagicMock()
+        
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
@@ -59,15 +61,15 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
-                    result = await eval_rule(rule, mock_resources)
-                    
-                    self.assertTrue(result["triggered"])
-                    self.assertEqual(result["value"], "person")
-                    self.assertEqual(result["resource"], "cam1")
-                    mock_detector.capture_all_from_camera.assert_called_once_with(
-                        "cam1", return_detections=True, return_image=True
-                    )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
+                        result = await eval_rule(rule, mock_resources)
+                        
+                        self.assertTrue(result["triggered"])
+                        self.assertEqual(result["value"], "person")
+                        self.assertEqual(result["resource"], "cam1")
+                        mock_camera.get_image.assert_called_once()
+                        mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_no_matching_class(self):
         """Test detector rule evaluation with detection that doesn't match class regex"""
@@ -83,23 +85,25 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection.class_name = "car"  # Doesn't match regex
         mock_detection.confidence = 0.8
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection]
+        mock_image = MagicMock()
+        
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                result = await eval_rule(rule, mock_resources)
-                
-                self.assertFalse(result["triggered"])
-                mock_detector.capture_all_from_camera.assert_called_once_with(
-                    "cam1", return_detections=True, return_image=True
-                )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    result = await eval_rule(rule, mock_resources)
+                    
+                    self.assertFalse(result["triggered"])
+                    mock_camera.get_image.assert_called_once()
+                    mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_low_confidence(self):
         """Test detector rule evaluation with detection below confidence threshold"""
@@ -115,23 +119,25 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection.class_name = "person"
         mock_detection.confidence = 0.6  # Below threshold
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection]
+        mock_image = MagicMock()
+        
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                result = await eval_rule(rule, mock_resources)
-                
-                self.assertFalse(result["triggered"])
-                mock_detector.capture_all_from_camera.assert_called_once_with(
-                    "cam1", return_detections=True, return_image=True
-                )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    result = await eval_rule(rule, mock_resources)
+                    
+                    self.assertFalse(result["triggered"])
+                    mock_camera.get_image.assert_called_once()
+                    mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_multiple_detections(self):
         """Test detector rule evaluation with multiple detections"""
@@ -151,11 +157,13 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection2.class_name = "car"  # Matches regex
         mock_detection2.confidence = 0.8
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection1, mock_detection2]
+        mock_image = MagicMock()
+        
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection1, mock_detection2]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
@@ -165,15 +173,15 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
-                    result = await eval_rule(rule, mock_resources)
-                    
-                    self.assertTrue(result["triggered"])
-                    self.assertEqual(result["value"], "car")
-                    self.assertEqual(result["resource"], "cam1")
-                    mock_detector.capture_all_from_camera.assert_called_once_with(
-                        "cam1", return_detections=True, return_image=True
-                    )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
+                        result = await eval_rule(rule, mock_resources)
+                        
+                        self.assertTrue(result["triggered"])
+                        self.assertEqual(result["value"], "car")
+                        self.assertEqual(result["resource"], "cam1")
+                        mock_camera.get_image.assert_called_once()
+                        mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_no_detections(self):
         """Test detector rule evaluation with no detections"""
@@ -185,23 +193,25 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.confidence_pct = 0.7
         
         # Mock dependencies
-        mock_all = MagicMock()
-        mock_all.detections = []  # No detections
+        mock_image = MagicMock()
+        
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = []  # No detections
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                result = await eval_rule(rule, mock_resources)
-                
-                self.assertFalse(result["triggered"])
-                mock_detector.capture_all_from_camera.assert_called_once_with(
-                    "cam1", return_detections=True, return_image=True
-                )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    result = await eval_rule(rule, mock_resources)
+                    
+                    self.assertFalse(result["triggered"])
+                    mock_camera.get_image.assert_called_once()
+                    mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_exception_handling(self):
         """Test detector rule evaluation with exception handling"""
@@ -213,24 +223,25 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.confidence_pct = 0.7
         
         # Mock dependencies
+        mock_camera = AsyncMock()
+        mock_camera.get_image.side_effect = Exception("Camera error")
+        
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.side_effect = Exception("Camera error")
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                try:
-                    result = await eval_rule(rule, mock_resources)
-                    
-                    self.assertFalse(result["triggered"])
-                    mock_logger.error.assert_called_once()
-                except Exception:
-                    mock_detector.capture_all_from_camera.assert_called_once_with(
-                        "cam1", return_detections=True, return_image=True
-                    )
-                    pass
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    try:
+                        result = await eval_rule(rule, mock_resources)
+                        
+                        self.assertFalse(result["triggered"])
+                        mock_logger.error.assert_called_once()
+                    except Exception:
+                        mock_camera.get_image.assert_called_once()
+                        pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -10,8 +10,6 @@ sys.path.append(str(Path(__file__).parent.parent))
 # Import test modules
 from tests.test_events import TestEvent
 from tests.test_rules import TestRules, TestRuleEvaluation
-from tests.test_event_manager import TestEventManagerBasics
-from tests.test_notifications import TestNotificationClasses
 from tests.test_rules_evaluation import (
     TestRuleTrackerInitialization, 
     TestGetValueByDotNotation,
@@ -23,7 +21,6 @@ from tests.test_classifier_rules import (
     TestErrorHandling
 )
 from tests.test_logic import TestLogicFunctions
-from tests.test_state_persistence import TestStatePersistence
 
 def create_test_suite():
     """Create a test suite with all tests"""
@@ -37,8 +34,8 @@ def create_test_suite():
     test_suite.addTests(loader.loadTestsFromTestCase(TestEvent))
     test_suite.addTests(loader.loadTestsFromTestCase(TestRules))
     test_suite.addTests(loader.loadTestsFromTestCase(TestRuleEvaluation))
-    test_suite.addTests(loader.loadTestsFromTestCase(TestEventManagerBasics))
-    test_suite.addTests(loader.loadTestsFromTestCase(TestNotificationClasses))
+    # TestEventManagerBasics is a pytest class, not a unittest class
+    # TestNotificationClasses is also a pytest class, not a unittest class
     
     # Add rule evaluation tests
     test_suite.addTests(loader.loadTestsFromTestCase(TestRuleTrackerInitialization))
@@ -53,8 +50,7 @@ def create_test_suite():
     # Add logic function tests
     test_suite.addTests(loader.loadTestsFromTestCase(TestLogicFunctions))
     
-    # Add state persistence and rule reset tests
-    test_suite.addTests(loader.loadTestsFromTestCase(TestStatePersistence))
+    # TestStatePersistence is a pytest class, not a unittest class
     
     return test_suite
 

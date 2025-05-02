@@ -90,7 +90,7 @@ class TestTrackerRuleEvaluation:
                         
                         # Check that correct methods were called
                         mock_tracker.capture_all_from_camera.assert_called_once_with(
-                            "cam1", return_classifications=False, return_detections=True, return_image=True
+                            "cam1", return_classifications=False, return_detections=True, return_image=True, extra={}
                         )
                         mock_tracker.do_command.assert_called_once_with({"list_current": True})
                         mock_image.crop.assert_called_once_with((10, 20, 110, 220))
@@ -141,7 +141,7 @@ class TestTrackerRuleEvaluation:
                     
                     # Check that correct methods were called
                     mock_tracker.capture_all_from_camera.assert_called_once_with(
-                        "cam1", return_classifications=False, return_detections=True, return_image=True
+                        "cam1", return_classifications=False, return_detections=True, return_image=True, extra={}
                     )
                     mock_tracker.do_command.assert_called_once_with({"list_current": True})
     
@@ -208,7 +208,7 @@ class TestTrackerRuleEvaluation:
                         
                         # Check that correct methods were called
                         mock_tracker.capture_all_from_camera.assert_called_once_with(
-                            "cam1", return_classifications=False, return_detections=True, return_image=True
+                            "cam1", return_classifications=False, return_detections=True, return_image=True, extra={}
                         )
                         mock_tracker.do_command.assert_called_once_with({"list_current": True})
                         mock_image.crop.assert_called_once_with((10, 20, 110, 220))
@@ -289,7 +289,7 @@ class TestTrackerRuleEvaluation:
                 
                 # Check that correct methods were called
                 mock_tracker.capture_all_from_camera.assert_called_once_with(
-                    "cam1", return_classifications=False, return_detections=True, return_image=True
+                    "cam1", return_classifications=False, return_detections=True, return_image=True, extra={}
                 )
                 mock_tracker.do_command.assert_called_once_with({"list_current": True})
     

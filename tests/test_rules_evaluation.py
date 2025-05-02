@@ -175,11 +175,12 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection.class_name = "person"
         mock_detection.confidence = 0.8
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection]
+        mock_image = MagicMock()
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
@@ -189,13 +190,15 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
-                    result = await eval_rule(rule, mock_resources)
-                    
-                    self.assertTrue(result["triggered"])
-                    mock_detector.capture_all_from_camera.assert_called_once_with(
-                        "test_camera", return_detections=True, return_image=True
-                    )
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
+                        result = await eval_rule(rule, mock_resources)
+                        
+                        self.assertTrue(result["triggered"])
+                        mock_camera.get_image.assert_called_once()
+                        mock_detector.get_detections.assert_called_once_with(
+                            mock_image, extra={}
+                        )
     
     async def test_detector_rule_evaluation_not_matching_confidence(self):
         """Test evaluating a detector rule with detection below confidence threshold"""
@@ -211,21 +214,23 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_detection.class_name = "person"
         mock_detection.confidence = 0.6  # Below threshold
         
-        mock_all = MagicMock()
-        mock_all.detections = [mock_detection]
+        mock_image = MagicMock()
+        mock_camera = AsyncMock()
+        mock_camera.get_image.return_value = mock_image
         
         mock_detector = AsyncMock()
-        mock_detector.capture_all_from_camera.return_value = mock_all
+        mock_detector.get_detections.return_value = [mock_detection]
         
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
         
         with patch('src.rules.getParam', return_value=mock_logger):
             with patch('src.rules._get_vision_service', return_value=mock_detector):
-                # We don't need to mock viam_to_pil_image here as it should never be called
-                result = await eval_rule(rule, mock_resources)
-                
-                self.assertFalse(result["triggered"])
+                with patch('src.rules._get_camera_component', return_value=mock_camera):
+                    # We don't need to mock viam_to_pil_image here as it should never be called
+                    result = await eval_rule(rule, mock_resources)
+                    
+                    self.assertFalse(result["triggered"])
     
     async def test_tracker_rule_evaluation_unauthorized_person(self):
         """Test evaluating a tracker rule with an unauthorized person"""
