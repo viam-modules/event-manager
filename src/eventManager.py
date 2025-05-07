@@ -258,12 +258,12 @@ class eventManager(Sensor, Reconfigurable):
         self.deps = dependencies
         self.robot_resources['resources'] = attributes.get("resources")
 
-        if "sms_module" in self.robot_resources and self.robot_resources["sms_module"] != "":
-            actual = self.robot_resources['_deps'][GenericService.get_resource_name(self.robot_resources["sms_module"])]
-            self.robot_resources['sms_module'] = cast(GenericService, actual)
-        if "email_module" in self.robot_resources and self.robot_resources["email_module"] != "":
-            actual = self.robot_resources['_deps'][GenericService.get_resource_name(self.robot_resources["email_module"])]
-            self.robot_resources['email_module'] = cast(GenericService, actual)
+        sms_module = config.attributes.fields["sms_module"].string_value or ""
+        if sms_module != "":
+            self.robot_resources['sms_module_name'] = sms_module
+        email_module = config.attributes.fields["email_module"].string_value or ""
+        if email_module != "":
+            self.robot_resources['email_module_name'] = email_module
         
         self.api_key = config.attributes.fields["app_api_key"].string_value or ''
         self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
