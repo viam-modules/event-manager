@@ -62,8 +62,8 @@ async def notify(event: events.Event, notification: Union[NotificationEmail, Not
                 notification_resource = resources['push_module']
                 if hasattr(notification, "include_image") and notification.include_image:
                     if 'img_base64_str' in locals():
-                        notification_args["template_vars"]["image_base64"] = img_base64_str
-                        notification_args["template_vars"]["media_mime_type"] = "image/jpeg"
+                        notification_args["media_base64"] = img_base64_str
+                        notification_args["media_mime_type"] = "image/jpeg"
             else:
                 getParam('logger').warning("No push module defined, can't send push notification")
                 return
