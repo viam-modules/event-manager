@@ -1,4 +1,4 @@
-from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
+from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
 from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
 
@@ -18,7 +18,7 @@ class Event():
     modes: list = ["inactive"]
     rule_logic_type: str = 'AND'
     rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
-    notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET]
+    notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET|NotificationPush]
     actions: list[Action]
     actions_paused: bool = False
     triggered_rules: dict = {}
@@ -57,6 +57,9 @@ class Event():
                                 self.__dict__[key].append(NotificationEmail(**email))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(NotificationWebhookGET(**item))
+                        elif item["type"] == "push":
+                            # Assuming fcm_tokens is provided as a list in the config
+                            self.__dict__[key].append(NotificationPush(**item))
                 elif key == "rules":
                     self.__dict__["rules"] = []
                     for item in value:

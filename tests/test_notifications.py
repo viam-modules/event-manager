@@ -13,7 +13,7 @@ from PIL import Image
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.notifications import notify, check_sms_response
-from src.notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET
+from src.notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
 from src.events import Event
 
 @pytest.fixture
@@ -37,14 +37,17 @@ def mock_resources():
     # Create mock email and SMS modules
     email_module = AsyncMock()
     sms_module = AsyncMock()
+    push_module = AsyncMock()
     
     # Configure mock responses
     email_module.do_command.return_value = {"status": "sent"}
     sms_module.do_command.return_value = {"status": "sent"}
+    push_module.do_command.return_value = {"status": "sent", "sent_count": 1, "failed_count": 0}
     
     return {
         "email_module": email_module,
-        "sms_module": sms_module
+        "sms_module": sms_module,
+        "push_module": push_module
     }
 
 # Class tests converted from unittest format
@@ -94,6 +97,19 @@ class TestNotificationClasses:
         assert notification.preset == "Alert"
         assert notification.url == "https://example.com/webhook"
         assert notification.query_params == {"event": "test"}
+
+    def test_push_notification_initialization(self):
+        """Test that NotificationPush can be properly initialized"""
+        push_config = {
+            "preset": "PushAlert",
+            "fcm_tokens": ["token1", "token2"]
+        }
+        
+        notification = NotificationPush(**push_config)
+        
+        assert notification.preset == "PushAlert"
+        assert notification.fcm_tokens == ["token1", "token2"]
+        assert notification.type == "push"
 
 
 @pytest.mark.asyncio
@@ -243,6 +259,53 @@ class TestNotify:
             import urllib.request
             urllib.request.urlopen.assert_called_once_with("https://example.com/webhook")
     
+    async def test_notify_push_with_image(self, mock_event, mock_image, mock_resources):
+        """Test sending a push notification with an image."""
+        notification = NotificationPush(
+            fcm_tokens=["test_token1"],
+            preset="PushAlert",
+            include_image=True
+        )
+        notification.image = mock_image
+        
+        mock_logger = MagicMock()
+        with patch('src.notifications.getParam', return_value=mock_logger):
+            await notify(mock_event, notification, mock_resources)
+            
+            mock_resources["push_module"].do_command.assert_called_once()
+            call_args = mock_resources["push_module"].do_command.call_args[0][0]
+            
+            assert call_args["command"] == "send"
+            assert call_args["fcm_tokens"] == ["test_token1"]
+            assert call_args["preset"] == "PushAlert"
+            assert "template_vars" in call_args
+            assert call_args["template_vars"]["event_name"] == "Test Event"
+            assert call_args["template_vars"]["triggered_label"] == "person"
+            assert call_args["template_vars"]["triggered_camera"] == "front_door"
+            assert "image_base64" in call_args["template_vars"]
+            assert call_args["template_vars"]["media_mime_type"] == "image/jpeg"
+
+    async def test_notify_push_without_image(self, mock_event, mock_resources):
+        """Test sending a push notification without an image."""
+        notification = NotificationPush(
+            fcm_tokens=["test_token2"],
+            preset="PushUpdate",
+            include_image=False
+        )
+        
+        mock_logger = MagicMock()
+        with patch('src.notifications.getParam', return_value=mock_logger):
+            await notify(mock_event, notification, mock_resources)
+            
+            mock_resources["push_module"].do_command.assert_called_once()
+            call_args = mock_resources["push_module"].do_command.call_args[0][0]
+
+            assert call_args["command"] == "send"
+            assert call_args["fcm_tokens"] == ["test_token2"]
+            assert call_args["preset"] == "PushUpdate"
+            assert "template_vars" in call_args
+            assert "image_base64" not in call_args["template_vars"]
+
     async def test_notify_missing_email_module(self, mock_event, mock_resources):
         """Test handling when email module is missing."""
         # Create an email notification
@@ -327,6 +390,21 @@ class TestNotify:
             
             # Verify error was logged
             mock_logger.error.assert_called_once()
+
+    async def test_notify_missing_push_module(self, mock_event, mock_resources):
+        """Test handling when push module is missing."""
+        notification = NotificationPush(
+            fcm_tokens=["test_token3"],
+            preset="PushError"
+        )
+        
+        mock_logger = MagicMock()
+        mock_resources_copy = mock_resources.copy()
+        del mock_resources_copy["push_module"]
+        
+        with patch('src.notifications.getParam', return_value=mock_logger):
+            await notify(mock_event, notification, mock_resources_copy)
+            mock_logger.warning.assert_called_with("No push module defined, can't send push notification")
 
 
 @pytest.mark.asyncio

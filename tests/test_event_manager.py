@@ -15,6 +15,13 @@ from src.eventManager import eventManager
 from src.events import Event
 from src.actions import Action
 from viam.utils import SensorReading
+from viam.proto.app.robot import ModuleConfig
+from viam.proto.common import ResourceName
+from viam.resource.base import ResourceBase
+from viam.services.generic import Generic
+from google.protobuf.struct_pb2 import Struct
+from src.notificationClass import NotificationPush
+from src.rules import RuleDetector
 
 # Basic tests from both files
 @pytest.mark.asyncio
@@ -199,3 +206,100 @@ class TestEventManagerBasics:
         # The implementation might handle invalid commands differently
         # Just verify we get some kind of result
         assert result is not None 
+
+class TestEventManagerReconfigureAndLoop:
+    """Tests focusing on reconfigure and event_check_loop with push_module."""
+
+    def _create_mock_module_config(self, attributes_dict: dict) -> MagicMock:
+        mock_struct = Struct()
+        mock_struct.update(attributes_dict)
+        
+        # Create a MagicMock that simulates ModuleConfig
+        mock_config = MagicMock(spec=ModuleConfig) # Spec it to ModuleConfig for some type safety
+        mock_config.name = "test_config"
+        
+        # Mock the .attributes field to be our struct
+        # To handle struct_to_dict(config.attributes) which likely accesses .fields
+        mock_attributes_object = MagicMock()
+        mock_attributes_object.fields = mock_struct.fields # Simulate the .fields attribute of a Struct
+        mock_config.attributes = mock_attributes_object
+        
+        return mock_config
+
+    @pytest.mark.asyncio
+    async def test_reconfigure_with_push_module(self):
+        manager = eventManager("test_manager_reconfig")
+        manager.logger = MagicMock()
+
+        mock_config_attributes = {
+            "push_module": "my_push_service"
+        }
+        config = self._create_mock_module_config(mock_config_attributes)
+        dependencies: dict[ResourceName, ResourceBase] = {}
+
+        manager.reconfigure(config, dependencies)
+
+        assert "push_module_name" in manager.robot_resources
+        assert manager.robot_resources["push_module_name"] == "my_push_service"
+
+    @pytest.mark.asyncio
+    async def test_event_check_loop_with_push_module(self):
+        manager = eventManager("test_manager_loop")
+        manager.logger = MagicMock()
+
+        # Mock event and push module
+        mock_push_service = AsyncMock(spec=Generic)
+        
+        # Create a more detailed mock for NotificationPush
+        mock_notification_push = MagicMock(spec=NotificationPush)
+        mock_notification_push.type = "push"
+        mock_notification_push.preset = "TestPushPreset" # Expected by notify
+        mock_notification_push.fcm_tokens = ["test_fcm_token123"] # Expected by notify
+        mock_notification_push.include_image = False # Expected by notify
+        mock_notification_push.image = None # Expected by notify
+
+        event = Event(name="TestPushEvent", detection_hz=1, pause_alerting_on_event_secs=0)
+        event.modes = ["active"]
+        event.is_triggered = False # Start untriggered
+        mock_rule = MagicMock(spec=RuleDetector) # Create a spec'd mock rule
+        # Ensure it doesn't have attributes that would cause premature pause
+        del mock_rule.inverse_pause_secs 
+        del mock_rule.pause_on_known_secs
+        event.rules = [mock_rule]
+        event.notifications = [mock_notification_push] # Use the detailed mock
+        
+        manager.mode = "active"
+        manager.robot_resources = {
+            "push_module_name": "my_push_service",
+            # other resources might be needed by rules.eval_rule if not fully mocked
+        }
+        manager.deps = {
+            Generic.get_resource_name("my_push_service"): mock_push_service
+        }
+        manager.event_states = [event] # Ensure the event is in event_states
+
+        stop_event = asyncio.Event()
+
+        # Patch dependencies
+        with patch('src.eventManager.globals.setParam') as mock_set_param, \
+             patch('src.eventManager.rules.eval_rule', new_callable=AsyncMock, return_value={"triggered": True, "value": "test_label", "resource": "test_camera", "image": MagicMock()}) as mock_eval_rule, \
+             patch('src.eventManager.notifications.notify', new_callable=AsyncMock) as mock_notify, \
+             patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            
+            # mock_sleep to prevent infinite loop in test
+            mock_sleep.side_effect = asyncio.CancelledError # Stop loop after first check
+
+            try:
+                await manager.event_check_loop(event, stop_event)
+            except asyncio.CancelledError:
+                pass # Expected
+
+            mock_set_param.assert_called_with('logger', manager.logger)
+            mock_eval_rule.assert_called()
+            mock_notify.assert_called_once()
+            
+            # Check that the push_module was correctly passed to notify
+            _, args, _ = mock_notify.mock_calls[0]
+            called_event_object, called_notification_object, called_resources = args
+            assert "push_module" in called_resources
+            assert called_resources["push_module"] == mock_push_service 

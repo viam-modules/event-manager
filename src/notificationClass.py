@@ -30,3 +30,13 @@ class NotificationWebhookGET():
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             self.__dict__[key] = value
+
+class NotificationPush():
+    type: str="push"
+    fcm_tokens: list[str]
+    preset: str
+    image: Optional[Image.Image] = None
+    include_image: bool = False
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            self.__dict__[key] = value

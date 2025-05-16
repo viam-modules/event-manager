@@ -81,6 +81,9 @@ class eventManager(Sensor, Reconfigurable):
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
             deps.append(email_module)
+        push_module = config.attributes.fields["push_module"].string_value or ""
+        if push_module != "":
+            deps.append(push_module)
         return deps
 
     def _init_db(self):
@@ -264,6 +267,9 @@ class eventManager(Sensor, Reconfigurable):
         email_module = config.attributes.fields["email_module"].string_value or ""
         if email_module != "":
             self.robot_resources['email_module_name'] = email_module
+        push_module_name = config.attributes.fields["push_module"].string_value or ""
+        if push_module_name != "":
+            self.robot_resources['push_module_name'] = push_module_name
         
         self.api_key = config.attributes.fields["app_api_key"].string_value or ''
         self.api_key_id = config.attributes.fields["app_api_key_id"].string_value or ''
@@ -315,6 +321,9 @@ class eventManager(Sensor, Reconfigurable):
         if "email_module_name" in event_resources and event_resources["email_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["email_module_name"])]
             event_resources['email_module'] = cast(GenericService, actual)
+        if "push_module_name" in event_resources and event_resources["push_module_name"] != "":
+            actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["push_module_name"])]
+            event_resources['push_module'] = cast(GenericService, actual)
 
         self.logger.info("Starting event check loop for " + event.name)
         last_state_save_time = time.time()

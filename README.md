@@ -16,7 +16,8 @@ When a rule is triggers, configured notification actions can occur of type:
 
 * SMS (with media, e.g. MMS)
 * Email
-* GET push notification
+* Webhook GET
+* Push notifications
 
 Video of any triggered event can be captured and stored in Viam data management via a video storage camera (configured as a dependency).
 
@@ -209,6 +210,7 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
     "app_api_key_id": "weygwegqeyygadydagfd",
     "email_module": "shared-alerting:email",
     "sms_module": "shared-alerting:sms",
+    "push_module": "shared-alerting:push",
     "resources": {
         "kasa_plug_1": {"type": "component", "subtype": "generic"},
         "kasa_plug_2": {"type": "component", "subtype": "generic"},
@@ -262,7 +264,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
             ], 
             "notifications": [
                     {"type": "sms", "to": ["123-456-7890"], "preset": "alert"},
-                    {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"}
+                    {"type": "email", "to": ["test@somedomain.com"], "preset": "alert"},
+                    {"type": "push", "fcm_tokens": ["<FCM_TOKEN_1>", "<FCM_TOKEN_2>"], "preset": "alert", "include_image": true}
                 ],
             "actions": [
                 {   
@@ -379,6 +382,13 @@ If email notifications are configured, this is required.
 
 The name of an SMS sending service configured as part of this machine that uses the API format of [this module](https://app.viam.com/module/mcvella/twilio-sms)
 If SMS notifications are configured, this is required.
+
+### push_module
+
+*string (optional)*
+
+The name of a push notification service configured as part of this machine (e.g., one compatible with [Datiom/viam-firebase-push](https://github.com/Datiom/viam-firebase-push)).
+If push notifications of type `push` are configured, this module is required. It will receive a `do_command` with parameters `fcm_tokens`, `preset`, and `template_vars`.
 
 ### back_state_to_disk
 
@@ -619,3 +629,31 @@ viam module build start --version x.x.x
 ## Todo
 
 * Support other types of webhooks
+
+### Notification Settings
+
+Notifications are configured within each event's `notifications` array. Each notification object must have a `type`.
+
+Supported types:
+*   `"email"`: Sends an email.
+    *   `to`: (list of strings) Email addresses to send to.
+    *   `preset`: (string) Name of a preset message defined in the email module.
+    *   `include_image`: (boolean, optional, default: `false`) Whether to include an image from the triggering event.
+*   `"sms"`: Sends an SMS (or MMS if `include_image` is true).
+    *   `to`: (list of strings) Phone numbers to send to.
+    *   `preset`: (string) Name of a preset message defined in the SMS module.
+    *   `include_image`: (boolean, optional, default: `true` for SMS) Whether to include an image.
+*   `"webhook_get"`: Makes a GET request to a URL.
+    *   `url`: (string) The URL to request.
+    *   `include_image`: (boolean, optional, default: `false`) Not typically used directly, but image data can be part of presets if the webhook is designed to handle it.
+*   `"push"`: Sends a push notification via a configured generic service (e.g., Firebase Cloud Messaging).
+    *   `fcm_tokens`: (list of strings) FCM registration tokens of the target devices.
+    *   `preset`: (string) Name of a preset message defined in the push notification module. The module should support replacing template variables like `<<event_name>>`, `<<triggered_label>>`, `<<triggered_camera>>`, and potentially `<<image_base64>>` and `<<media_mime_type>>` if `include_image` is true.
+    *   `include_image`: (boolean, optional, default: `false`) Whether to include an image. If true, `image_base64` and `media_mime_type` are made available in `template_vars` for the push module.
+
+**Note on Modules for Notifications:**
+*   For `email` notifications, an `email_module` must be specified at the top level of the configuration, pointing to a Viam generic service that handles sending emails.
+*   For `sms` notifications, an `sms_module` must be specified, pointing to a Viam generic service for SMS.
+*   For `push` notifications, a `push_module` (described under [Top Level Attributes](#push_module)) must be specified.
+
+### Rule Settings
