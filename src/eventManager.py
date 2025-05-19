@@ -84,6 +84,14 @@ class eventManager(Sensor, Reconfigurable):
         push_module = config.attributes.fields["push_module"].string_value or ""
         if push_module != "":
             deps.append(push_module)
+
+        # Add video_capture_resource from each event if configured
+        dict_events = attributes.get("events")
+        if dict_events is not None and isinstance(dict_events, list):
+            for e in dict_events:
+                if isinstance(e, dict) and e.get("video_capture_resource"):
+                    deps.append(e["video_capture_resource"])
+
         return deps
 
     def _init_db(self):
