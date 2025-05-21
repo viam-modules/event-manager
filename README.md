@@ -594,7 +594,7 @@ Example rule with extra parameter:
 
 If *type* is **time**, *ranges* must be defined, which is a list of *start_hour* and *end_hour*, which are integers representing the start hour in UTC.
 
-If *type* is **call**, a *resource* configured in [resources](#resources) must be specified (currently generic components/services, vision services, and sensor components are supported), as well as the following other parameters:
+If *type* is **call**, a *resource* configured in [resources](#resources) must be specified (currently generic components/services, vision services, sensor components, and motor components are supported), as well as the following other parameters:
 
 | Key | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
@@ -605,6 +605,15 @@ If *type* is **call**, a *resource* configured in [resources](#resources) must b
 | `result_operator` | string | **Required** | A operator to evaluate against the result.  Currently supported: eq, ne, lt, lte, gt, gte, regex, in, hasattr. |
 | `result_value` | string | **Required** | The value to use in the operator evaluation. |
 | `inverse_pause_secs` | string | Optional | A duration to pause event evaluation if the result evaluates to false. |
+
+Example motor action that sets motor power to 50%:
+```json
+{
+    "resource": "my_motor",
+    "method": "set_power",
+    "payload": "{\"power\": 0.5}"
+}
+```
 
 ## Building and running
 
