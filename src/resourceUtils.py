@@ -1,10 +1,11 @@
 import json
-from typing import cast, Dict, Any, Optional, Protocol, runtime_checkable
+from typing import cast, Dict, Any, Optional, Protocol, runtime_checkable, Union
 
 from viam.components.generic import Generic as GenericComponent
 from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
 from viam.components.sensor import Sensor
+from viam.components.motor import Motor
 from viam.resource.base import ResourceBase
 
 @runtime_checkable
@@ -43,6 +44,9 @@ async def call_method(
     if (resources["resources"][name]["type"] == "component") and (resources["resources"][name]["subtype"] == "sensor"):
         resource_dep = resources['_deps'][Sensor.get_resource_name(name)]
         resource = cast(Sensor, resource_dep)
+    if (resources["resources"][name]["type"] == "component") and (resources["resources"][name]["subtype"] == "motor"):
+        resource_dep = resources['_deps'][Motor.get_resource_name(name)]
+        resource = cast(Motor, resource_dep)
     if (resources["resources"][name]["type"] == "service") and (resources["resources"][name]["subtype"] == "generic"):
         resource_dep = resources['_deps'][GenericService.get_resource_name(name)]
         resource = cast(GenericService, resource_dep)
@@ -62,6 +66,6 @@ async def call_method(
             payload_copy = payload_copy.replace('<<triggered_camera>>', event.triggered_camera)
             payload_copy = payload_copy.replace('<<event_name>>', event.name)
         
-            return await method_fn(json.loads(payload_copy.replace("'", "\"")))
+        return await method_fn(json.loads(payload_copy.replace("'", "\"")))
     else:
         return await method_fn()
