@@ -606,12 +606,13 @@ If *type* is **call**, a *resource* configured in [resources](#resources) must b
 | `result_value` | string | **Required** | The value to use in the operator evaluation. |
 | `inverse_pause_secs` | string | Optional | A duration to pause event evaluation if the result evaluates to false. |
 
-Example motor action that sets motor power to 100%:
+Example motor action that sets motor power to 100% immediately:
 ```json
 {
     "resource": "my_motor",
     "method": "set_power",
-    "payload": "1"
+    "payload": "1",
+    "when_secs": 0
 }
 ```
 
