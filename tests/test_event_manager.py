@@ -303,3 +303,166 @@ class TestEventManagerReconfigureAndLoop:
             called_event_object, called_notification_object, called_resources = args
             assert "push_module" in called_resources
             assert called_resources["push_module"] == mock_push_service 
+
+@pytest.mark.asyncio
+class TestResourceAvailability:
+    """Tests for resource availability checking in event check loop."""
+
+    async def test_event_with_missing_resources(self):
+        """Test that event goes into incomplete state when resources are missing."""
+        manager = eventManager("test_manager")
+        manager.logger = MagicMock()
+
+        # Set up robot_resources
+        manager.robot_resources = {
+            "sms_module_name": "",
+            "email_module_name": "",
+            "push_module_name": ""  # Empty string to avoid push module lookup
+        }
+
+        # Create an event that requires multiple resources
+        event = Event(name="Test Event")
+        event.modes = ["active"]
+        event.detection_hz = 1
+        event.pause_alerting_on_event_secs = 0
+        event.video_capture_resource = "camera1"
+        
+        # Add a rule that requires a resource
+        rule = MagicMock()
+        rule.resource = "detector1"
+        rule.camera = "camera2"
+        event.rules = [rule]
+        
+        # Add an action that requires a resource
+        action = MagicMock()
+        action.resource = "light1"
+        event.actions = [action]
+
+        # Set up dependencies with some resources missing
+        manager.deps = {
+            Generic.get_resource_name("detector1"): MagicMock(),  # Only detector1 is available
+            # camera1, camera2, and light1 are missing
+        }
+
+        # Create stop event
+        stop_event = asyncio.Event()
+
+        # Run the event check loop
+        await manager.event_check_loop(event, stop_event)
+
+        # Verify event went into incomplete state
+        assert event.state == "incomplete"
+        assert "Missing resources" in event.pause_reason
+        assert "camera1" in event.pause_reason
+        assert "camera2" in event.pause_reason
+        assert "light1" in event.pause_reason
+        assert "detector1" not in event.pause_reason  # This one was available
+
+        # Verify warning was logged
+        manager.logger.warning.assert_called_once()
+        warning_msg = manager.logger.warning.call_args[0][0]
+        assert "incomplete due to missing resources" in warning_msg
+        assert "camera1" in warning_msg
+        assert "camera2" in warning_msg
+        assert "light1" in warning_msg
+
+    async def test_event_with_all_resources_available(self):
+        """Test that event proceeds normally when all resources are available."""
+        manager = eventManager("test_manager")
+        manager.logger = MagicMock()
+
+        # Set up robot_resources
+        manager.robot_resources = {
+            "sms_module_name": "",
+            "email_module_name": "",
+            "push_module_name": ""  # Empty string to avoid push module lookup
+        }
+
+        # Create an event that requires multiple resources
+        event = Event(name="Test Event")
+        event.modes = ["active"]
+        event.detection_hz = 1
+        event.pause_alerting_on_event_secs = 0
+        event.video_capture_resource = "camera1"
+        
+        # Add a rule that requires a resource
+        rule = MagicMock()
+        rule.resource = "detector1"
+        rule.camera = "camera2"
+        event.rules = [rule]
+        
+        # Add an action that requires a resource
+        action = MagicMock()
+        action.resource = "light1"
+        event.actions = [action]
+
+        # Set up dependencies with all resources available
+        manager.deps = {
+            Generic.get_resource_name("camera1"): MagicMock(),
+            Generic.get_resource_name("camera2"): MagicMock(),
+            Generic.get_resource_name("detector1"): MagicMock(),
+            Generic.get_resource_name("light1"): MagicMock(),
+        }
+
+        # Create stop event
+        stop_event = asyncio.Event()
+
+        # Mock the rule evaluation to prevent infinite loop
+        with patch('src.eventManager.rules.eval_rule', new_callable=AsyncMock) as mock_eval_rule:
+            mock_eval_rule.return_value = {"triggered": False}
+            # Remove CancelledError side effect, use timeout instead
+
+            try:
+                await asyncio.wait_for(manager.event_check_loop(event, stop_event), timeout=2)
+            except asyncio.TimeoutError:
+                stop_event.set()  # Ensure the loop exits if it didn't already
+            except asyncio.CancelledError:
+                pass  # In case CancelledError is still raised
+
+        # Verify event did not go into incomplete state
+        assert event.state != "incomplete"
+        assert "Missing resources" not in event.pause_reason
+
+        # Verify no warning was logged
+        manager.logger.warning.assert_not_called()
+
+    async def test_event_with_optional_resources(self):
+        """Test that event proceeds normally when optional resources are missing."""
+        manager = eventManager("test_manager")
+        manager.logger = MagicMock()
+
+        # Set up robot_resources
+        manager.robot_resources = {
+            "sms_module_name": "",
+            "email_module_name": "",
+            "push_module_name": ""  # Empty string to avoid push module lookup
+        }
+
+        # Create an event with only optional resources (no rules or actions)
+        event = Event(name="Test Event")
+        event.modes = ["active"]
+        event.detection_hz = 1
+        event.pause_alerting_on_event_secs = 0
+        event.video_capture_resource = "camera1"  # Optional resource
+        event.rules = []
+        event.actions = []
+        
+        # Set up dependencies with optional resource missing
+        manager.deps = {}  # No resources available
+
+        # Create stop event
+        stop_event = asyncio.Event()
+
+        # Run the event check loop
+        await manager.event_check_loop(event, stop_event)
+
+        # Verify event went into incomplete state
+        assert event.state == "incomplete"
+        assert "Missing resources" in event.pause_reason
+        assert "camera1" in event.pause_reason
+
+        # Verify warning was logged
+        manager.logger.warning.assert_called_once()
+        warning_msg = manager.logger.warning.call_args[0][0]
+        assert "incomplete due to missing resources" in warning_msg
+        assert "camera1" in warning_msg 

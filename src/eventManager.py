@@ -66,15 +66,16 @@ class eventManager(Sensor, Reconfigurable):
 
     # Validates JSON Configuration
     @classmethod
-    def validate(cls, config: ModuleConfig):
+    def validate(cls, config: ModuleConfig) -> tuple[list[str], list[str]]:
         deps = []
+        optional_deps = []
 
         attributes = struct_to_dict(config.attributes)
 
         resources = attributes.get("resources")
         if isinstance(resources, dict):
             for r in resources.keys():
-                deps.append(r)
+                optional_deps.append(r)
         sms_module = config.attributes.fields["sms_module"].string_value or ""
         if sms_module != "":
             deps.append(sms_module)
@@ -90,9 +91,9 @@ class eventManager(Sensor, Reconfigurable):
         if dict_events is not None and isinstance(dict_events, list):
             for e in dict_events:
                 if isinstance(e, dict) and e.get("video_capture_resource"):
-                    deps.append(e["video_capture_resource"])
+                    optional_deps.append(e["video_capture_resource"])
 
-        return deps
+        return deps, optional_deps
 
     def _init_db(self):
         """Initialize the SQLite database if backup to disk is enabled"""
@@ -335,6 +336,40 @@ class eventManager(Sensor, Reconfigurable):
 
         self.logger.info("Starting event check loop for " + event.name)
         last_state_save_time = time.time()
+
+        # Check resource availability for rules and actions
+        missing_resources = set()
+        
+        # Check resources needed by rules
+        for rule in event.rules:
+            if hasattr(rule, 'resource') and rule.resource:
+                resource_name = GenericService.get_resource_name(rule.resource)
+                if resource_name not in event_resources['_deps']:
+                    missing_resources.add(rule.resource)
+            if hasattr(rule, 'camera') and rule.camera:
+                resource_name = GenericService.get_resource_name(rule.camera)
+                if resource_name not in event_resources['_deps']:
+                    missing_resources.add(rule.camera)
+        
+        # Check resources needed by actions
+        for action in event.actions:
+            if hasattr(action, 'resource') and action.resource:
+                resource_name = GenericService.get_resource_name(action.resource)
+                if resource_name not in event_resources['_deps']:
+                    missing_resources.add(action.resource)
+
+        # Check video capture resource if configured
+        if hasattr(event, 'video_capture_resource') and event.video_capture_resource:
+            resource_name = GenericService.get_resource_name(event.video_capture_resource)
+            if resource_name not in event_resources['_deps']:
+                missing_resources.add(event.video_capture_resource)
+        
+        # If any resources are missing, set event to incomplete state
+        if missing_resources:
+            event.state = "incomplete"
+            event.pause_reason = f"Missing resources: {', '.join(missing_resources)}"
+            self.logger.warning(f"Event {event.name} is incomplete due to missing resources: {', '.join(missing_resources)}")
+            return  # Exit the loop since reconfigure() will restart it when resources are available
         
         while not stop_event.is_set():
             try:
