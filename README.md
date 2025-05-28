@@ -508,15 +508,17 @@ Higher values can prevent false resets due to momentary fluctuations or detectio
 
 Notifications when an event triggers.
 
-"type" is one of sms|email|webhook_get.
+"type" is one of sms|email|webhook_get|push.
 
 "preset" is a string specifying the name of the preset message to send.
 
 "to" is a list of phone numbers or email addresses.
 
-"include_image" - whether to include an image of the event (if available) in the SMS.  Default is true.
+"include_image" - whether to include an image of the event (if available) in the notification. Default is true for SMS, false for email and push.
 
 "url" - for webhook_get, the URL to call.
+
+"fcm_tokens" - for push notifications, a list of Firebase Cloud Messaging tokens for target devices.
 
 The following are also sent in a *template_vars* object for sms and email:
 
@@ -526,11 +528,15 @@ The following are also sent in a *template_vars* object for sms and email:
 
 "triggered_camera" -  For computer vision triggers, the triggered camera.
 
-The following are also sent in the *template_vars* object for email only (if_include_image is true):
+The following are also sent in the *template_vars* object for email and push (if include_image is true):
 
 "media_base64" - For computer vision triggers, the base64 string representation of the image.
 
 "media_mime_type" - For computer vision triggers, the MIME type of the image.
+
+For push notifications, a `data` object is also included in the notification payload that can be used by the receiving app for deep linking. The data object includes:
+- type: "camera_event"
+- cameraName: The name of the camera that triggered the event
 
 #### actions
 

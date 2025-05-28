@@ -64,6 +64,10 @@ async def notify(event: events.Event, notification: Union[NotificationEmail, Not
                     if 'img_base64_str' in locals():
                         notification_args["media_base64"] = img_base64_str
                         notification_args["media_mime_type"] = "image/jpeg"
+                        notification_args["data"] = {
+                            "type": "camera_event",
+                            "cameraName": event.triggered_camera
+                        }
             else:
                 getParam('logger').warning("No push module defined, can't send push notification")
                 return
