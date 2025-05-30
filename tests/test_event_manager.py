@@ -18,7 +18,9 @@ from viam.utils import SensorReading
 from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName
 from viam.resource.base import ResourceBase
-from viam.services.generic import Generic
+from viam.services.generic import Generic as GenericService
+from viam.components.generic import Generic as GenericComponent
+from viam.components.camera import Camera
 from google.protobuf.struct_pb2 import Struct
 from src.notificationClass import NotificationPush
 from src.rules import RuleDetector
@@ -248,7 +250,7 @@ class TestEventManagerReconfigureAndLoop:
         manager.logger = MagicMock()
 
         # Mock event and push module
-        mock_push_service = AsyncMock(spec=Generic)
+        mock_push_service = AsyncMock(spec=GenericService)
         
         # Create a more detailed mock for NotificationPush
         mock_notification_push = MagicMock(spec=NotificationPush)
@@ -271,10 +273,16 @@ class TestEventManagerReconfigureAndLoop:
         manager.mode = "active"
         manager.robot_resources = {
             "push_module_name": "my_push_service",
-            # other resources might be needed by rules.eval_rule if not fully mocked
+            "resources": {
+                "my_push_service": {"type": "service", "subtype": "generic"}
+            }
         }
         manager.deps = {
-            Generic.get_resource_name("my_push_service"): mock_push_service
+            GenericService.get_resource_name("my_push_service"): mock_push_service,  # Add the push service
+            GenericComponent.get_resource_name("camera1"): MagicMock(),  # Generic component
+            Camera.get_resource_name("camera2"): MagicMock(),  # Camera component
+            GenericService.get_resource_name("detector1"): MagicMock(),  # Generic service
+            GenericComponent.get_resource_name("light1"): MagicMock(),  # Generic component
         }
         manager.event_states = [event] # Ensure the event is in event_states
 
@@ -317,7 +325,13 @@ class TestResourceAvailability:
         manager.robot_resources = {
             "sms_module_name": "",
             "email_module_name": "",
-            "push_module_name": ""  # Empty string to avoid push module lookup
+            "push_module_name": "",  # Empty string to avoid push module lookup
+            "resources": {
+                "detector1": {"type": "service", "subtype": "generic"},
+                "camera1": {"type": "component", "subtype": "generic"},
+                "camera2": {"type": "component", "subtype": "camera"},
+                "light1": {"type": "component", "subtype": "generic"}
+            }
         }
 
         # Create an event that requires multiple resources
@@ -340,31 +354,41 @@ class TestResourceAvailability:
 
         # Set up dependencies with some resources missing
         manager.deps = {
-            Generic.get_resource_name("detector1"): MagicMock(),  # Only detector1 is available
+            GenericService.get_resource_name("detector1"): MagicMock(),  # Only detector1 is available
             # camera1, camera2, and light1 are missing
         }
 
         # Create stop event
         stop_event = asyncio.Event()
 
-        # Run the event check loop
-        await manager.event_check_loop(event, stop_event)
+        # Mock necessary dependencies to prevent infinite loop
+        with patch('src.eventManager.globals.setParam') as mock_set_param, \
+             patch('src.eventManager.rules.eval_rule', new_callable=AsyncMock) as mock_eval_rule, \
+             patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            
+            # Set up sleep to raise CancelledError after first check
+            mock_sleep.side_effect = asyncio.CancelledError()
 
-        # Verify event went into incomplete state
-        assert event.state == "incomplete"
-        assert "Missing resources" in event.pause_reason
-        assert "camera1" in event.pause_reason
-        assert "camera2" in event.pause_reason
-        assert "light1" in event.pause_reason
-        assert "detector1" not in event.pause_reason  # This one was available
+            try:
+                await manager.event_check_loop(event, stop_event)
+            except asyncio.CancelledError:
+                pass  # Expected
 
-        # Verify warning was logged
-        manager.logger.warning.assert_called_once()
-        warning_msg = manager.logger.warning.call_args[0][0]
-        assert "incomplete due to missing resources" in warning_msg
-        assert "camera1" in warning_msg
-        assert "camera2" in warning_msg
-        assert "light1" in warning_msg
+            # Verify event went into incomplete state
+            assert event.state == "incomplete"
+            assert "Missing resources" in event.pause_reason
+            assert "camera1" in event.pause_reason
+            assert "camera2" in event.pause_reason
+            assert "light1" in event.pause_reason
+            assert "detector1" not in event.pause_reason  # This one was available
+
+            # Verify warning was logged
+            manager.logger.warning.assert_called_once()
+            warning_msg = manager.logger.warning.call_args[0][0]
+            assert "incomplete due to missing resources" in warning_msg
+            assert "camera1" in warning_msg
+            assert "camera2" in warning_msg
+            assert "light1" in warning_msg
 
     async def test_event_with_all_resources_available(self):
         """Test that event proceeds normally when all resources are available."""
@@ -375,7 +399,13 @@ class TestResourceAvailability:
         manager.robot_resources = {
             "sms_module_name": "",
             "email_module_name": "",
-            "push_module_name": ""  # Empty string to avoid push module lookup
+            "push_module_name": "",  # Empty string to avoid push module lookup
+            "resources": {
+                "detector1": {"type": "service", "subtype": "generic"},
+                "camera1": {"type": "component", "subtype": "generic"},
+                "camera2": {"type": "component", "subtype": "camera"},
+                "light1": {"type": "component", "subtype": "generic"}
+            }
         }
 
         # Create an event that requires multiple resources
@@ -398,10 +428,10 @@ class TestResourceAvailability:
 
         # Set up dependencies with all resources available
         manager.deps = {
-            Generic.get_resource_name("camera1"): MagicMock(),
-            Generic.get_resource_name("camera2"): MagicMock(),
-            Generic.get_resource_name("detector1"): MagicMock(),
-            Generic.get_resource_name("light1"): MagicMock(),
+            GenericComponent.get_resource_name("camera1"): MagicMock(),  # Generic component
+            Camera.get_resource_name("camera2"): MagicMock(),  # Camera component
+            GenericService.get_resource_name("detector1"): MagicMock(),  # Generic service
+            GenericComponent.get_resource_name("light1"): MagicMock(),  # Generic component
         }
 
         # Create stop event
@@ -435,7 +465,13 @@ class TestResourceAvailability:
         manager.robot_resources = {
             "sms_module_name": "",
             "email_module_name": "",
-            "push_module_name": ""  # Empty string to avoid push module lookup
+            "push_module_name": "",  # Empty string to avoid push module lookup
+            "resources": {
+                "detector1": {"type": "service", "subtype": "generic"},
+                "camera1": {"type": "component", "subtype": "generic"},
+                "camera2": {"type": "component", "subtype": "camera"},
+                "light1": {"type": "component", "subtype": "generic"}
+            }
         }
 
         # Create an event with only optional resources (no rules or actions)
