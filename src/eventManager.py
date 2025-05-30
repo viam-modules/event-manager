@@ -10,7 +10,11 @@ from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
 
 from viam.services.generic import Generic as GenericService
+from viam.services.vision import VisionClient
+from viam.components.generic import Generic as GenericComponent
 from viam.components.sensor import Sensor
+from viam.components.camera import Camera
+from viam.components.motor import Motor
 from viam.utils import SensorReading
 from viam.errors import NoCaptureToStoreError
 from viam.utils import from_dm_from_extra
@@ -316,6 +320,93 @@ class eventManager(Sensor, Reconfigurable):
             self.stop_events.append(stop_event)
             asyncio.create_task(self.event_check_loop(event, stop_event))
     
+    def _check_resource_availability(self, name: str, event_resources: Dict[str, Any], 
+                                   expected_type: Optional[str] = None, 
+                                   expected_subtype: Optional[str] = None) -> Optional[str]:
+        """Check if a resource is available and return its resource name if it is.
+        
+        Args:
+            name: Name of the resource to check
+            event_resources: Dictionary of available resources
+            expected_type: Optional expected resource type (e.g. "component", "service")
+            expected_subtype: Optional expected resource subtype (e.g. "camera", "generic")
+            
+        Returns:
+            Resource name if the resource is available, None if it's missing
+        """
+        self.logger.error(f"Checking resource availability for {name}")
+        self.logger.error(f"Event resources: {event_resources}")
+
+            
+        resource_type = expected_type or event_resources["resources"][name]["type"]
+        resource_subtype = expected_subtype or event_resources["resources"][name]["subtype"]
+        
+        if resource_type == "component":
+            if resource_subtype == "camera":
+                resource_name = Camera.get_resource_name(name)
+            elif resource_subtype == "sensor":
+                resource_name = Sensor.get_resource_name(name)
+            elif resource_subtype == "motor":
+                resource_name = Motor.get_resource_name(name)
+            elif resource_subtype == "generic":
+                resource_name = GenericComponent.get_resource_name(name)
+            else:
+                return None
+        elif resource_type == "service":
+            if resource_subtype == "generic":
+                resource_name = GenericService.get_resource_name(name)
+            elif resource_subtype == "vision":
+                resource_name = VisionClient.get_resource_name(name)
+            else:
+                return None
+        else:
+            return None
+            
+        if resource_name not in event_resources['_deps']:
+            return None
+            
+        return resource_name
+
+    def _check_event_resources(self, event: events.Event, event_resources: Dict[str, Any]) -> Optional[set[str]]:
+        """Check if all resources required by an event are available.
+        
+        Args:
+            event: The event to check resources for
+            event_resources: Dictionary of available resources
+            
+        Returns:
+            Set of missing resource names if any are missing, None if all resources are available
+        """
+        missing_resources = set()
+        
+        # Check resources needed by rules
+        for rule in event.rules:
+            if hasattr(rule, 'resource') and rule.resource:
+                if not self._check_resource_availability(rule.resource, event_resources):
+                    missing_resources.add(rule.resource)
+            if hasattr(rule, 'camera') and rule.camera:
+                # Camera resources must be camera components
+                if not self._check_resource_availability(rule.camera, event_resources, 
+                                                       expected_type="component", 
+                                                       expected_subtype="camera"):
+                    missing_resources.add(rule.camera)
+        
+        # Check resources needed by actions
+        for action in event.actions:
+            if hasattr(action, 'resource') and action.resource:
+                if not self._check_resource_availability(action.resource, event_resources):
+                    missing_resources.add(action.resource)
+
+        # Check video capture resource if configured
+        if hasattr(event, 'video_capture_resource') and event.video_capture_resource:
+            # Video capture resources must be generic components
+            if not self._check_resource_availability(event.video_capture_resource, event_resources,
+                                                   expected_type="component",
+                                                   expected_subtype="generic"):
+                missing_resources.add(event.video_capture_resource)
+        
+        return missing_resources if missing_resources else None
+
     async def event_check_loop(self, event:events.Event, stop_event: asyncio.Event):
         # make the resource logger available globally
         globals.setParam('logger',self.logger)
@@ -327,50 +418,26 @@ class eventManager(Sensor, Reconfigurable):
         if "sms_module_name" in event_resources and event_resources["sms_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["sms_module_name"])]
             event_resources['sms_module'] = cast(GenericService, actual)
+
         if "email_module_name" in event_resources and event_resources["email_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["email_module_name"])]
             event_resources['email_module'] = cast(GenericService, actual)
+
         if "push_module_name" in event_resources and event_resources["push_module_name"] != "":
             actual = event_resources['_deps'][GenericService.get_resource_name(event_resources["push_module_name"])]
             event_resources['push_module'] = cast(GenericService, actual)
 
-        self.logger.info("Starting event check loop for " + event.name)
-        last_state_save_time = time.time()
-
-        # Check resource availability for rules and actions
-        missing_resources = set()
-        
-        # Check resources needed by rules
-        for rule in event.rules:
-            if hasattr(rule, 'resource') and rule.resource:
-                resource_name = GenericService.get_resource_name(rule.resource)
-                if resource_name not in event_resources['_deps']:
-                    missing_resources.add(rule.resource)
-            if hasattr(rule, 'camera') and rule.camera:
-                resource_name = GenericService.get_resource_name(rule.camera)
-                if resource_name not in event_resources['_deps']:
-                    missing_resources.add(rule.camera)
-        
-        # Check resources needed by actions
-        for action in event.actions:
-            if hasattr(action, 'resource') and action.resource:
-                resource_name = GenericService.get_resource_name(action.resource)
-                if resource_name not in event_resources['_deps']:
-                    missing_resources.add(action.resource)
-
-        # Check video capture resource if configured
-        if hasattr(event, 'video_capture_resource') and event.video_capture_resource:
-            resource_name = GenericService.get_resource_name(event.video_capture_resource)
-            if resource_name not in event_resources['_deps']:
-                missing_resources.add(event.video_capture_resource)
-        
-        # If any resources are missing, set event to incomplete state
+        # Check resource availability
+        missing_resources = self._check_event_resources(event, event_resources)
         if missing_resources:
             event.state = "incomplete"
             event.pause_reason = f"Missing resources: {', '.join(missing_resources)}"
             self.logger.warning(f"Event {event.name} is incomplete due to missing resources: {', '.join(missing_resources)}")
             return  # Exit the loop since reconfigure() will restart it when resources are available
-        
+
+        self.logger.info("Starting event check loop for " + event.name)
+        last_state_save_time = time.time()
+                
         while not stop_event.is_set():
             try:
                 if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
