@@ -282,8 +282,8 @@ class TestNotify:
             assert call_args["template_vars"]["event_name"] == "Test Event"
             assert call_args["template_vars"]["triggered_label"] == "person"
             assert call_args["template_vars"]["triggered_camera"] == "front_door"
-            assert "image_base64" in call_args["template_vars"]
-            assert call_args["template_vars"]["media_mime_type"] == "image/jpeg"
+            assert "media_base64" in call_args
+            assert call_args["media_mime_type"] == "image/jpeg"
 
     async def test_notify_push_without_image(self, mock_event, mock_resources):
         """Test sending a push notification without an image."""

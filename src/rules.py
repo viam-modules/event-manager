@@ -89,13 +89,13 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
     match rule.type:
         case "time":
             curr_time = datetime.now()
-            if isinstance(rule, RuleTime):  # Type narrowing
+            if isinstance(rule, RuleTime):
                 for r in rule.ranges:
                     if (curr_time.hour >= r.start_hour) and (curr_time.hour < r.end_hour):
                         getParam('logger').debug("Time triggered")
                         response["triggered"] = True   
         case "detection":
-            if isinstance(rule, RuleDetector):  # Type narrowing
+            if isinstance(rule, RuleDetector):
                 detector = _get_vision_service(rule.detector, resources)
                 
                 # Get the camera component
@@ -116,7 +116,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                             response["value"] = d.class_name
                             response["resource"] = rule.camera
         case "classification":
-            if isinstance(rule, RuleClassifier):  # Type narrowing
+            if isinstance(rule, RuleClassifier):
                 classifier = _get_vision_service(rule.classifier, resources)
                 
                 # Get the camera component
@@ -137,7 +137,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                             response["value"] = c.class_name
                             response["resource"] = rule.camera
         case "tracker":
-            if isinstance(rule, RuleTracker):  # Type narrowing
+            if isinstance(rule, RuleTracker):
                 tracker = _get_vision_service(rule.tracker, resources)
                 # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
                 all = await tracker.capture_all_from_camera(
@@ -179,7 +179,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     response["triggered"] = True
         case "call":
             try:
-                if isinstance(rule, RuleCall):  # Type narrowing
+                if isinstance(rule, RuleCall):
                     call_res = await call_method(resources, rule.resource, rule.method, rule.payload, None)
                     if rule.result_path:
                         call_res = get_value_by_dot_notation(call_res, rule.result_path)
