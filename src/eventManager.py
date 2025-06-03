@@ -458,6 +458,7 @@ class eventManager(Sensor, Reconfigurable):
 
                     actions.flip_action_status(event, False)
 
+                    start_eval_time = time.time()
                     rule_results = []
                     for rule in event.rules:
                         self.logger.debug(rule)
@@ -512,7 +513,7 @@ class eventManager(Sensor, Reconfigurable):
                     
                     if rules_triggered and not event.is_triggered:
                         event.is_triggered = True
-                        event.last_triggered = time.time()
+                        event.last_triggered = start_eval_time
                         event.state = "triggered"
                         # Reset the rule reset counter 
                         event.rule_reset_counter = 0
