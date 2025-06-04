@@ -334,8 +334,8 @@ class eventManager(Sensor, Reconfigurable):
         Returns:
             Resource name if the resource is available, None if it's missing
         """
-        self.logger.error(f"Checking resource availability for {name}")
-        self.logger.error(f"Event resources: {event_resources}")
+        self.logger.debug(f"Checking resource availability for {name}")
+        self.logger.debug(f"Event resources: {event_resources}")
 
             
         resource_type = expected_type or event_resources["resources"][name]["type"]
