@@ -28,11 +28,12 @@ async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Opt
     vs = _get_video_store(event.video_capture_resource, resources)
     
     # Calculate capture window based on event trigger time and padding
-    from_time = datetime.fromtimestamp(event.last_triggered - event.event_video_capture_padding_secs, timezone.utc)
-    to_time = datetime.fromtimestamp(event.last_triggered + event.event_video_capture_padding_secs, timezone.utc)
+    # Convert UTC timestamp to local time for video store
+    from_time = datetime.fromtimestamp(event.last_triggered - event.event_video_capture_padding_secs)
+    to_time = datetime.fromtimestamp(event.last_triggered + event.event_video_capture_padding_secs)
     
     # Calculate how long we need to sleep to reach to_time + 1 second
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now()
     target_time = to_time + timedelta(seconds=1)
     if current_time < target_time:
         sleep_seconds = (target_time - current_time).total_seconds()
