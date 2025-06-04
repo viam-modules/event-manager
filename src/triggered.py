@@ -26,25 +26,22 @@ async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Opt
         Result of the capture command or None if there was an error
     """
     vs = _get_video_store(event.video_capture_resource, resources)
-
+    
+    # sleep for the padding time to ensure we have the video capture resource available
     await asyncio.sleep(event.event_video_capture_padding_secs)
-    current_time = datetime.now()
-    # go back a second to ensure its not the current second
-    current_time = current_time - timedelta(seconds=1)
+    
+    # Calculate capture window based on event trigger time and padding
+    from_time = datetime.fromtimestamp(event.last_triggered - event.event_video_capture_padding_secs, timezone.utc)
+    to_time = datetime.fromtimestamp(event.last_triggered + event.event_video_capture_padding_secs, timezone.utc)
 
-    # Format the current time
-    formatted_time_current = current_time.strftime('%Y-%m-%d_%H-%M-%S')
-
-    # we want X seconds before and after, so subtract X*2 from current time
-    time_minus = current_time - timedelta(seconds=(event.event_video_capture_padding_secs*2))
-
-    # Format the time minus X*2
-    formatted_time_minus = time_minus.strftime('%Y-%m-%d_%H-%M-%S')
+    # Format the times
+    formatted_time_from = from_time.strftime('%Y-%m-%d_%H-%M-%S')
+    formatted_time_to = to_time.strftime('%Y-%m-%d_%H-%M-%S')
 
     store_args: Dict[str, Any] = { 
         "command": "save",
-        "from": formatted_time_minus,
-        "to": formatted_time_current,
+        "from": formatted_time_from,
+        "to": formatted_time_to,
         "metadata": _label(event.name, event.video_capture_resource, event.last_triggered),
         "async": True
     }
@@ -53,7 +50,7 @@ async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Opt
         store_result = await vs.do_command(store_args)
         return cast(Dict[str, Any], store_result)
     except Exception as e:
-        getParam('logger').error(e)
+        getParam('logger').error(f"Error requesting video capture for event {event.name}: {str(e)}")
         return None
 
 async def get_triggered_cloud(
