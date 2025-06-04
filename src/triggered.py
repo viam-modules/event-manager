@@ -27,12 +27,16 @@ async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Opt
     """
     vs = _get_video_store(event.video_capture_resource, resources)
     
-    # sleep for the padding time to ensure we have the video capture resource available
-    await asyncio.sleep(event.event_video_capture_padding_secs)
-    
     # Calculate capture window based on event trigger time and padding
     from_time = datetime.fromtimestamp(event.last_triggered - event.event_video_capture_padding_secs, timezone.utc)
     to_time = datetime.fromtimestamp(event.last_triggered + event.event_video_capture_padding_secs, timezone.utc)
+    
+    # Calculate how long we need to sleep to reach to_time + 1 second
+    current_time = datetime.now(timezone.utc)
+    target_time = to_time + timedelta(seconds=1)
+    if current_time < target_time:
+        sleep_seconds = (target_time - current_time).total_seconds()
+        await asyncio.sleep(sleep_seconds)
 
     # Format the times
     formatted_time_from = from_time.strftime('%Y-%m-%d_%H-%M-%S')
