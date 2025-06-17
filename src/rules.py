@@ -174,7 +174,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                 getParam('logger').debug(approved_status)
                 if len(approved_status) > 0 and logic.NOR(approved_status):
                     getParam('logger').info("Tracker triggered")
-                    getParam('logger').info(response)
+                    getParam('logger').debug(response)
 
                     response["triggered"] = True
         case "call":

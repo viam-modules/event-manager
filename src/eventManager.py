@@ -60,6 +60,12 @@ class eventManager(Sensor, Reconfigurable):
     stop_events: list[asyncio.Event] = []
     back_state_to_disk: bool = False
     db_path: str = ""
+    enable_backoff_schedule: bool = False
+    default_backoff_schedule: Dict[int, int] = {
+        300: 120,
+        1200: 300,
+        3600: 900
+    }
 
     # Constructor
     @classmethod
@@ -201,6 +207,10 @@ class eventManager(Sensor, Reconfigurable):
                     fresh_event.triggered_label = saved_event.triggered_label
                     fresh_event.triggered_rules = saved_event.triggered_rules
                     
+                    # Restore backoff state
+                    fresh_event.backoff_adjustment = getattr(saved_event, 'backoff_adjustment', 0)
+                    fresh_event.continuous_trigger_start_time = getattr(saved_event, 'continuous_trigger_start_time', 0)
+
                     # Transfer rule reset state attributes
                     fresh_event.require_rule_reset = getattr(saved_event, 'require_rule_reset', False)
                     fresh_event.rule_reset_count = getattr(saved_event, 'rule_reset_count', 1)
@@ -260,6 +270,12 @@ class eventManager(Sensor, Reconfigurable):
                     mode = mode_value
         self.mode = mode
 
+        # Set backoff schedule settings
+        self.enable_backoff_schedule = bool(attributes.get("enable_backoff_schedule", False))
+        if "backoff_schedule" in attributes:
+            # It comes from JSON, so keys will be strings
+            self.default_backoff_schedule = {int(k): v for k, v in attributes["backoff_schedule"].items()}
+
         if attributes.get('event_video_capture_padding_secs'):
             self.event_video_capture_padding_secs = attributes.get('event_video_capture_padding_secs')
 
@@ -268,6 +284,9 @@ class eventManager(Sensor, Reconfigurable):
             for e in dict_events:
                 if isinstance(e, dict):
                     event = events.Event(**e)
+                    # Apply default backoff schedule if enabled and event doesn't have one
+                    if self.enable_backoff_schedule and not event.backoff_schedule:
+                        event.backoff_schedule = self.default_backoff_schedule
                     event.state = "setup"
                     self.event_states.append(event)
 
@@ -440,7 +459,7 @@ class eventManager(Sensor, Reconfigurable):
                 
         while not stop_event.is_set():
             try:
-                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
+                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.get_effective_pause_duration())))):
                     start_time = datetime.now()
                     event.state = "monitoring"
 
@@ -518,6 +537,14 @@ class eventManager(Sensor, Reconfigurable):
                         # Reset the rule reset counter 
                         event.rule_reset_counter = 0
 
+                        # If this is the first trigger in a sequence, set the continuous trigger start time
+                        if event.continuous_trigger_start_time == 0:
+                            event.continuous_trigger_start_time = event.last_triggered
+
+                        # Check backoff schedule if this is a repeating event and backoff is enabled
+                        if self.enable_backoff_schedule and event.backoff_schedule:
+                            event._check_backoff_schedule(event.last_triggered)
+
                         rule_index = 0
                         triggered_image = None
                         
@@ -549,6 +576,10 @@ class eventManager(Sensor, Reconfigurable):
                         if self.back_state_to_disk:
                             self._save_event_states()
                             last_state_save_time = time.time()
+                    elif not rules_triggered:
+                        # Event is no longer triggered, reset continuous trigger time and backoff
+                        event.continuous_trigger_start_time = 0
+                        event.backoff_adjustment = 0
 
                     # try to respect detection_hz as desired speed of detections
                     elapsed = (datetime.now() - start_time).total_seconds()
