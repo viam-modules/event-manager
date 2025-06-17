@@ -8,7 +8,7 @@ class Event():
     capture_video: bool = False
     video_capture_resource: str
     event_video_capture_padding_secs: int = 10
-    pause_alerting_on_event_secs: int = 300
+    pause_alerting_on_event_secs: int = 60
     detection_hz: int = 5
     notification_settings: list
     is_triggered: bool = False
@@ -111,7 +111,11 @@ class Event():
         if new_adjustment != self.backoff_adjustment:
             self.backoff_adjustment = new_adjustment
             try:
-                getParam('logger').info(f"Event {self.name} backoff: {seconds_since_start}s since continuous triggering started, adjusting pause by {new_adjustment}s")
+                new_pause_duration = self.get_effective_pause_duration()
+                msg = (f"Event {self.name} backoff schedule applied. "
+                       f"Time since first trigger: {seconds_since_start}s. "
+                       f"Pause duration adjusted to {new_pause_duration}s.")
+                getParam('logger').debug(msg)
             except Exception:
                 pass
 

@@ -369,6 +369,25 @@ Required if using [do_command](#do_command) functionality.
 Used to interface with Viam data management for triggered event management.
 Required if using [do_command](#do_command) functionality.
 
+### enable_backoff_schedule
+
+*boolean (default: false)*
+
+When enabled, the module's default backoff schedule will be applied to all events that do not have their own `backoff_schedule` defined.
+
+### backoff_schedule
+
+*object*
+
+A top-level object that overrides the module's default backoff schedule. This schedule is applied to all events where `enable_backoff_schedule` is true and the event does not have its own `backoff_schedule`. The module's default is:
+```json
+{
+  "300": 120,
+  "1200": 300,
+  "3600": 900
+}
+```
+
 ### email_module
 
 *string (optional)*
@@ -420,33 +439,6 @@ If an event is removed from the configuration, its state will not be restored. T
 
 The directory where state data will be stored when `back_state_to_disk` is enabled. The SQLite database will be created as `{name}_events.db` in this directory, where `{name}` is the name of the event manager component.
 
-### Backoff Schedule
-
-The `backoff_schedule` is an optional configuration that allows you to adjust the pause duration for repeatedly triggered events. This is useful for reducing alert fatigue when an event keeps triggering.
-
-The schedule is a dictionary where:
-- Keys are the number of seconds since the first trigger
-- Values are the new pause duration in seconds
-
-Example:
-```json
-{
-  "backoff_schedule": {
-    "300": 420,   // After 5 minutes, pause for 7 minutes
-    "1200": 600,  // After 20 minutes, pause for 10 minutes
-    "3600": 1200   // After 1 hour, pause for 20 minutes
-  }
-}
-```
-
-In this example:
-1. The event starts with the default `pause_alerting_on_event_secs` (typically 300 seconds)
-2. If the event is still continously triggered after 5 minutes, the pause duration becomes 420 seconds (7 min)
-3. If the event is still continously triggered again after 20 minutes, the pause duration becomes 600 seconds (10 min)
-4. If the event is still continously triggered again after 1 hour, the pause duration becomes 1200 seconds (20 min)
-
-This helps manage alert frequency by gradually increasing the pause duration as the event continues to trigger.
-
 ### events
 
 *list*
@@ -481,7 +473,7 @@ The name of a video capture resource, must also be specified in *resources*
 
 #### pause_alerting_on_event_secs
 
-*integer (default 300)*
+*integer (default 60)*
 
 How long to pause after triggered event before rules for the event are again evaluated.
 
@@ -490,6 +482,30 @@ How long to pause after triggered event before rules for the event are again eva
 *integer (default 10)*
 
 For stored video, how many seconds before and after the event should be saved (for example, a value of 10 would mean 20 seconds of video would be stored).
+
+#### backoff_schedule
+
+*object*
+
+An optional, event-specific dictionary that overrides the global backoff schedule. For this schedule to be active, the top-level `enable_backoff_schedule` attribute must be set to `true`.
+
+The schedule is a dictionary where keys are the number of seconds since the first trigger in a continuous sequence, and values are the new pause duration in seconds.
+
+Example:
+```json
+"backoff_schedule": {
+  "300": 120,   
+  "1200": 300,
+  "3600": 900
+}
+```
+In this example:
+1. The event starts with the `pause_alerting_on_event_secs` setting
+2. If the event is still continously triggered after 5 minutes, the pause duration becomes 120 seconds (2 min)
+3. If the event is still continously triggered again after 20 minutes, the pause duration becomes 300 seconds (5 min)
+4. If the event is still continously triggered again after 1 hour, the pause duration becomes 900 seconds (15 min)
+
+This helps manage alert frequency by gradually increasing the pause duration as the event continues to trigger.
 
 #### detection_hz
 
@@ -662,14 +678,3 @@ To run locally, point to the binary at:
 ``` bash
 dist/main
 ```
-
-To kick on a Linux build for the registry:
-
-``` bash
-viam module build start --version x.x.x
-```
-
-## Todo
-
-* Support other types of webhooks
-
