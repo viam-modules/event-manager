@@ -373,13 +373,13 @@ Required if using [do_command](#do_command) functionality.
 
 *boolean (default: false)*
 
-When enabled, the module's default backoff schedule will be applied to all events that do not have their own `backoff_schedule` defined.
+When enabled, the module's global backoff schedule will be applied to all events that do not have their own `backoff_schedule` defined, and event-specific backoff schedules will be be applied.
 
 ### backoff_schedule
 
 *object*
 
-A top-level object that overrides the module's default backoff schedule. This schedule is applied to all events where `enable_backoff_schedule` is true and the event does not have its own `backoff_schedule`. The module's default is:
+A top-level object that overrides the module's default backoff schedule. This schedule is applied to all events when `enable_backoff_schedule` is true and the event does not have its own `backoff_schedule`. The module's default is:
 ```json
 {
   "300": 120,
