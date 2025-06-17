@@ -440,7 +440,7 @@ class eventManager(Sensor, Reconfigurable):
                 
         while not stop_event.is_set():
             try:
-                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.pause_alerting_on_event_secs)))):
+                if ((self.mode in event.modes) and ((event.is_triggered == False) or ((event.is_triggered == True) and ((time.time() - event.last_triggered) >= event.get_effective_pause_duration())))):
                     start_time = datetime.now()
                     event.state = "monitoring"
 
@@ -518,6 +518,14 @@ class eventManager(Sensor, Reconfigurable):
                         # Reset the rule reset counter 
                         event.rule_reset_counter = 0
 
+                        # If this is the first trigger in a sequence, set the continuous trigger start time
+                        if event.continuous_trigger_start_time == 0:
+                            event.continuous_trigger_start_time = event.last_triggered
+
+                        # Check backoff schedule if this is a repeating event
+                        if event.backoff_schedule:
+                            event._check_backoff_schedule(event.last_triggered)
+
                         rule_index = 0
                         triggered_image = None
                         
@@ -549,6 +557,10 @@ class eventManager(Sensor, Reconfigurable):
                         if self.back_state_to_disk:
                             self._save_event_states()
                             last_state_save_time = time.time()
+                    elif not rules_triggered:
+                        # Event is no longer triggered, reset continuous trigger time and backoff
+                        event.continuous_trigger_start_time = 0
+                        event.backoff_adjustment = 0
 
                     # try to respect detection_hz as desired speed of detections
                     elapsed = (datetime.now() - start_time).total_seconds()

@@ -29,6 +29,9 @@ class Event():
     require_rule_reset: bool = False
     rule_reset_count: int = 1
     rule_reset_counter: int = 0
+    backoff_schedule: dict[int, int] = {}  # Maps seconds since first trigger to new pause duration
+    backoff_adjustment: int = 0  # Current adjustment to pause_alerting_on_event_secs from backoff schedule
+    continuous_trigger_start_time: float = 0  # When the event first started triggering continuously
 
     def __init__(self, **kwargs):
         notification_settings = kwargs.get('notification_settings')
@@ -80,6 +83,35 @@ class Event():
                 elif key == "actions":
                     for item in value:
                         self.__dict__[key].append(Action(**item))
+            elif key == "backoff_schedule" and isinstance(value, dict):
+                # Convert string keys to integers for backoff schedule
+                self.__dict__[key] = {int(k): int(v) for k, v in value.items()}
             else:
                 self.__dict__[key] = value
+
+    def get_effective_pause_duration(self) -> int:
+        """Get the effective pause duration including any backoff adjustments"""
+        return self.pause_alerting_on_event_secs + self.backoff_adjustment
+
+    def _check_backoff_schedule(self, current_time: float) -> None:
+        """Check and update backoff adjustment based on time since continuous triggering started"""
+        if not self.backoff_schedule or self.continuous_trigger_start_time <= 0:
+            self.backoff_adjustment = 0
+            return
+
+        # Calculate seconds since continuous triggering started
+        seconds_since_start = int(current_time - self.continuous_trigger_start_time)
+        
+        # Find the applicable backoff threshold
+        new_adjustment = 0
+        for threshold, adjustment in sorted(self.backoff_schedule.items()):
+            if seconds_since_start >= threshold:
+                new_adjustment = adjustment - self.pause_alerting_on_event_secs
+        
+        if new_adjustment != self.backoff_adjustment:
+            self.backoff_adjustment = new_adjustment
+            try:
+                getParam('logger').info(f"Event {self.name} backoff: {seconds_since_start}s since continuous triggering started, adjusting pause by {new_adjustment}s")
+            except Exception:
+                pass
 

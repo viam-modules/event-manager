@@ -420,6 +420,33 @@ If an event is removed from the configuration, its state will not be restored. T
 
 The directory where state data will be stored when `back_state_to_disk` is enabled. The SQLite database will be created as `{name}_events.db` in this directory, where `{name}` is the name of the event manager component.
 
+### Backoff Schedule
+
+The `backoff_schedule` is an optional configuration that allows you to adjust the pause duration for repeatedly triggered events. This is useful for reducing alert fatigue when an event keeps triggering.
+
+The schedule is a dictionary where:
+- Keys are the number of seconds since the first trigger
+- Values are the new pause duration in seconds
+
+Example:
+```json
+{
+  "backoff_schedule": {
+    "300": 420,   // After 5 minutes, pause for 7 minutes
+    "1200": 600,  // After 20 minutes, pause for 10 minutes
+    "3600": 1200   // After 1 hour, pause for 20 minutes
+  }
+}
+```
+
+In this example:
+1. The event starts with the default `pause_alerting_on_event_secs` (typically 300 seconds)
+2. If the event is still continously triggered after 5 minutes, the pause duration becomes 420 seconds (7 min)
+3. If the event is still continously triggered again after 20 minutes, the pause duration becomes 600 seconds (10 min)
+4. If the event is still continously triggered again after 1 hour, the pause duration becomes 1200 seconds (20 min)
+
+This helps manage alert frequency by gradually increasing the pause duration as the event continues to trigger.
+
 ### events
 
 *list*
