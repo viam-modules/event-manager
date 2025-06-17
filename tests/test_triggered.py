@@ -79,6 +79,7 @@ class TestVideoStore:
 class TestRequestCapture:
     """Tests for the request_capture function"""
     
+    @pytest.mark.asyncio
     async def test_successful_capture(self, mock_logger):
         """Test a successful video capture request"""
         # Setup mocks
@@ -97,23 +98,30 @@ class TestRequestCapture:
         with patch('src.triggered._get_video_store', return_value=mock_video_store):
             with patch('src.triggered.getParam', return_value=mock_logger):
                 with patch('src.triggered.asyncio.sleep') as mock_sleep:
-                    # Run the function
-                    result = await request_capture(mock_event, mock_resources)
-                    
-                    # Assertions
-                    mock_sleep.assert_called_once_with(10)
-                    mock_video_store.do_command.assert_called_once()
-                    
-                    # Check the save command parameters
-                    call_args = mock_video_store.do_command.call_args[0][0]
-                    assert call_args["command"] == "save"
-                    assert "from" in call_args
-                    assert "to" in call_args
-                    assert call_args["metadata"] == "SAVCAM--Test_Event--test-camera--1625097600.123"
-                    assert call_args["async"] is True
-                    
-                    # Check the result
-                    assert result == {"status": "saving"}
+                    # Patch datetime.now to be at trigger time so full sleep is needed
+                    fake_now = datetime.fromtimestamp(mock_event.last_triggered)
+                    with patch('src.triggered.datetime') as mock_datetime:
+                        mock_datetime.now.return_value = fake_now
+                        mock_datetime.fromtimestamp = datetime.fromtimestamp
+                        mock_datetime.strftime = datetime.strftime
+                        mock_datetime.timedelta = timedelta
+                        # Run the function
+                        result = await request_capture(mock_event, mock_resources)
+                        
+                        # Assertions
+                        mock_sleep.assert_called_once_with(11.0)
+                        mock_video_store.do_command.assert_called_once()
+                        
+                        # Check the save command parameters
+                        call_args = mock_video_store.do_command.call_args[0][0]
+                        assert call_args["command"] == "save"
+                        assert "from" in call_args
+                        assert "to" in call_args
+                        assert call_args["metadata"] == "SAVCAM--Test_Event--test-camera--1625097600.123"
+                        assert call_args["async"] is True
+                        
+                        # Check the result
+                        assert result == {"status": "saving"}
     
     async def test_capture_error_handling(self, mock_logger):
         """Test error handling during video capture"""
