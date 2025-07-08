@@ -206,8 +206,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
     },
     "back_state_to_disk": true,
     "data_directory": "/data/viam/event_manager",
-    "app_api_key": "daifdkaddkdfhshfeasw",
-    "app_api_key_id": "weygwegqeyygadydagfd",
+    "app_api_key": "${environment.API_KEY}",
+    "app_api_key_id": "${environment.API_KEY_ID}",
     "email_module": "shared-alerting:email",
     "sms_module": "shared-alerting:sms",
     "push_module": "shared-alerting:push",
@@ -319,6 +319,22 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
             ]
         }
     ]
+}
+```
+
+To use the environment variables, you must add them in the `modules` config:
+
+```json
+{
+  "modules": [
+    {
+      ...
+      "env": {
+        "API_KEY": "abcdefg987654321abcdefghi",
+        "API_KEY_ID": "1234abcd-123a-987b-1234567890abc"
+      }
+    }
+  ]
 }
 ```
 
