@@ -7,7 +7,8 @@
   "models": [
     {
       "api": "rdk:component:sensor",
-      "model": "viam:event-manager:eventing"
+      "model": "viam:event-manager:eventing",
+      "markdown_link": "README.md#viam-event-manager-service-configuration"
     }
   ],
   "build": {

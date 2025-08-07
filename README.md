@@ -188,7 +188,10 @@ If "include_dot": true is passed as an "extra" parameter, a [DOT string](https:/
 
 ## Viam event-manager Service Configuration
 
-The service configuration uses JSON to describe rules around events.
+Event manager configuration uses JSON to describe rules, notifications, and actions for events.
+
+You can try using a configuration helper for your event managers [found here](https://workflow_mcvella.viamapplications.com/).
+
 The following example configures three events:
 
 * The first triggers when the system is "active" and a configured sensor component gets values of a length greater than 3 at "big.good" within the get_readings() results, sending an email.
