@@ -625,7 +625,7 @@ Any number of rules can be configured for a given event.
 
 | Key | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. |
+| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. **Note: This parameter is only supported for detection, classification, tracker, and call rule types.** |
 
 If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined. The system will first call `get_image()` on the camera component and then use the detector service's `get_detections()` method with that image.
 
