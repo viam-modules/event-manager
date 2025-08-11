@@ -26,6 +26,7 @@ class RuleDetector():
     class_regex: str=".*"
     confidence_pct: float
     inverse_pause_secs: int
+    fail_eval: Optional[bool] = None
     extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -38,6 +39,7 @@ class RuleClassifier():
     class_regex: str=".*"
     confidence_pct: float
     inverse_pause_secs: int
+    fail_eval: Optional[bool] = None
     extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -50,6 +52,7 @@ class RuleTracker():
     tracker: str
     inverse_pause_secs: int
     pause_on_known_secs: int
+    fail_eval: Optional[bool] = None
     extra: dict = {}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -65,6 +68,7 @@ class RuleCall():
     result_function: str = ""
     result_operator: str
     result_value: Any
+    fail_eval: Optional[bool] = None
     inverse_pause_secs: int
 
     def __init__(self, **kwargs: Any) -> None:
@@ -73,6 +77,7 @@ class RuleCall():
 class RuleTime():
     type: str="time"
     ranges: list[TimeRange]
+    fail_eval: Optional[bool] = None
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             if isinstance(value, list):
@@ -95,88 +100,115 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                         getParam('logger').debug("Time triggered")
                         response["triggered"] = True   
         case "detection":
-            if isinstance(rule, RuleDetector):
-                detector = _get_vision_service(rule.detector, resources)
-                
-                # Get the camera component
-                camera = _get_camera_component(rule.camera, resources)
-                
-                # Get an image from the camera
-                image = await camera.get_image(extra=getattr(rule, 'extra', {}))
-                
-                # Get detections using the image
-                detections = await detector.get_detections(image, extra=getattr(rule, 'extra', {}))
-                
-                if detections:
-                    for d in detections:
-                        if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
-                            getParam('logger').debug("Detection triggered")
-                            response["triggered"] = True
-                            response["image"] = viam_to_pil_image(image)
-                            response["value"] = d.class_name
-                            response["resource"] = rule.camera
-        case "classification":
-            if isinstance(rule, RuleClassifier):
-                classifier = _get_vision_service(rule.classifier, resources)
-                
-                # Get the camera component
-                camera = _get_camera_component(rule.camera, resources)
-                
-                # Get an image from the camera
-                image = await camera.get_image(extra=getattr(rule, 'extra', {}))
-                
-                # Get classifications using the image
-                classifications = await classifier.get_classifications(image, count=10, extra=getattr(rule, 'extra', {}))
-                
-                if classifications:
-                    for c in classifications:
-                        if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
-                            getParam('logger').debug("Classification triggered")
-                            response["triggered"] = True
-                            response["image"] = viam_to_pil_image(image)
-                            response["value"] = c.class_name
-                            response["resource"] = rule.camera
-        case "tracker":
-            if isinstance(rule, RuleTracker):
-                tracker = _get_vision_service(rule.tracker, resources)
-                # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
-                all = await tracker.capture_all_from_camera(
-                    rule.camera, 
-                    return_classifications=False, 
-                    return_detections=True, 
-                    return_image=True,
-                    extra=getattr(rule, 'extra', {})
-                )
-                approved_status: List[bool] = []
-
-                current = await tracker.do_command({"list_current": True})
-                
-                if all.detections is not None:
-                    for d in all.detections:
-                        authorized = False
-
-                        # NOTE: the class name of a tracker detection that has been labeled will have a label appended to it,
-                        #  so we strip this label to match against the keys in current["list_current"]
-                        class_without_label = re.sub(r'\s+\(label:\s.*', '', d.class_name)
-                        list_current = current.get("list_current", {})
-                        getParam('logger').debug(class_without_label + "-" + str(list_current))
-
-                        if isinstance(list_current, dict) and class_without_label in list_current:
-                            k = list_current[class_without_label]
-                            if isinstance(k, dict) and (k.get("face_id_label") or k.get("manual_label") or k.get("re_id_label")):
-                                authorized = True
-                                response["known_person_seen"] = True
-                            approved_status.append(authorized)
-                            if not authorized and all.image is not None:
-                                response["image"] = viam_to_pil_image(all.image).crop((d.x_min, d.y_min, d.x_max, d.y_max))
-                                response["value"] = class_without_label
+            try:
+                if isinstance(rule, RuleDetector):
+                    detector = _get_vision_service(rule.detector, resources)
+                    
+                    # Get the camera component
+                    camera = _get_camera_component(rule.camera, resources)
+                    
+                    # Get an image from the camera
+                    image = await camera.get_image(extra=getattr(rule, 'extra', {}))
+                    
+                    # Get detections using the image
+                    detections = await detector.get_detections(image, extra=getattr(rule, 'extra', {}))
+                    
+                    if detections:
+                        for d in detections:
+                            if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
+                                getParam('logger').debug("Detection triggered")
+                                response["triggered"] = True
+                                response["image"] = viam_to_pil_image(image)
+                                response["value"] = d.class_name
                                 response["resource"] = rule.camera
-                getParam('logger').debug(approved_status)
-                if len(approved_status) > 0 and logic.NOR(approved_status):
-                    getParam('logger').info("Tracker triggered")
-                    getParam('logger').debug(response)
+            except Exception as e:
+                getParam('logger').error(f"Error in 'detection' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, 'fail_eval', None) is not None:
+                    response["triggered"] = rule.fail_eval
+                    response["value"] = None
+                    response["resource"] = rule.camera
+                    getParam('logger').debug(f"detection rule failed, using fail_eval: {rule.fail_eval}")
+                # If fail_eval is None, don't modify the response (maintains original behavior)
+        case "classification":
+            try:
+                if isinstance(rule, RuleClassifier):
+                    classifier = _get_vision_service(rule.classifier, resources)
+                    
+                    # Get the camera component
+                    camera = _get_camera_component(rule.camera, resources)
+                    
+                    # Get an image from the camera
+                    image = await camera.get_image(extra=getattr(rule, 'extra', {}))
+                    
+                    # Get classifications using the image
+                    classifications = await classifier.get_classifications(image, count=10, extra=getattr(rule, 'extra', {}))
+                    
+                    if classifications:
+                        for c in classifications:
+                            if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
+                                getParam('logger').debug("Classification triggered")
+                                response["triggered"] = True
+                                response["image"] = viam_to_pil_image(image)
+                                response["value"] = c.class_name
+                                response["resource"] = rule.camera
+            except Exception as e:
+                getParam('logger').error(f"Error in 'classification' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, 'fail_eval', None) is not None:
+                    response["triggered"] = rule.fail_eval
+                    response["value"] = None
+                    response["resource"] = rule.camera
+                    getParam('logger').debug(f"classification rule failed, using fail_eval: {rule.fail_eval}")
+                # If fail_eval is None, don't modify the response (maintains original behavior)
+        case "tracker":
+            try:
+                if isinstance(rule, RuleTracker):
+                    tracker = _get_vision_service(rule.tracker, resources)
+                    # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
+                    all = await tracker.capture_all_from_camera(
+                        rule.camera, 
+                        return_classifications=False, 
+                        return_detections=True, 
+                        return_image=True,
+                        extra=getattr(rule, 'extra', {})
+                    )
+                    approved_status: List[bool] = []
 
-                    response["triggered"] = True
+                    current = await tracker.do_command({"list_current": True})
+                    
+                    if all.detections is not None:
+                        for d in all.detections:
+                            authorized = False
+
+                            # NOTE: the class name of a tracker detection that has been labeled will have a label appended to it,
+                            #  so we strip this label to match against the keys in current["list_current"]
+                            class_without_label = re.sub(r'\s+\(label:\s.*', '', d.class_name)
+                            list_current = current.get("list_current", {})
+                            getParam('logger').debug(class_without_label + "-" + str(list_current))
+
+                            if isinstance(list_current, dict) and class_without_label in list_current:
+                                k = list_current[class_without_label]
+                                if isinstance(k, dict) and (k.get("face_id_label") or k.get("manual_label") or k.get("re_id_label")):
+                                    authorized = True
+                                    response["known_person_seen"] = True
+                                approved_status.append(authorized)
+                                if not authorized and all.image is not None:
+                                    response["image"] = viam_to_pil_image(all.image).crop((d.x_min, d.y_min, d.x_max, d.y_max))
+                                    response["value"] = class_without_label
+                                    response["resource"] = rule.camera
+                    getParam('logger').debug(approved_status)
+                    if len(approved_status) > 0 and logic.NOR(approved_status):
+                        getParam('logger').info("Tracker triggered")
+                        getParam('logger').debug(response)
+
+                        response["triggered"] = True
+            except Exception as e:
+                getParam('logger').error(f"Error in 'tracker' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, 'fail_eval', None) is not None:
+                    response["triggered"] = rule.fail_eval
+                    response["value"] = None
+                    response["resource"] = rule.camera
+                    getParam('logger').debug(f"tracker rule failed, using fail_eval: {rule.fail_eval}")
+                # If fail_eval is None, don't modify the response (maintains original behavior)
         case "call":
             try:
                 if isinstance(rule, RuleCall):
@@ -222,6 +254,12 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     getParam('logger').debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
             except Exception as e:
                 getParam('logger').error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, 'fail_eval', None) is not None:
+                    response["triggered"] = rule.fail_eval
+                    response["value"] = None
+                    response["resource"] = rule.resource
+                    getParam('logger').debug(f"call rule failed, using fail_eval: {rule.fail_eval}")
+                # If fail_eval is None, don't modify the response (maintains original behavior)
     return response
 
 def logical_trigger(logic_type: str, list: List[bool]) -> bool:

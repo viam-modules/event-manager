@@ -619,7 +619,13 @@ Any number of rules can be configured for a given event.
 
 ##### rule type
 
-*enum detection|classification|tracker|time*
+*enum detection|classification|tracker|time|call*
+
+**Common Parameters for All Rule Types:**
+
+| Key | Type | Inclusion | Description |
+| ---- | ---- | --------- | ----------- |
+| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. |
 
 If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined. The system will first call `get_image()` on the camera component and then use the detector service's `get_detections()` method with that image.
 
@@ -656,7 +662,20 @@ If *type* is **call**, a *resource* configured in [resources](#resources) must b
 | `result_function` | string | Optional | A python function to call on the result.  Currently supported: len, any |
 | `result_operator` | string | **Required** | A operator to evaluate against the result.  Currently supported: eq, ne, lt, lte, gt, gte, regex, in, hasattr. |
 | `result_value` | string | **Required** | The value to use in the operator evaluation. |
+| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. |
 | `inverse_pause_secs` | string | Optional | A duration to pause event evaluation if the result evaluates to false. |
+
+Example call rule with fail_eval:
+```json
+{
+    "type": "call",
+    "resource": "api_service",
+    "method": "get_status",
+    "result_operator": "eq",
+    "result_value": "ok",
+    "fail_eval": true
+}
+```
 
 Example motor action that sets motor power to 100% immediately:
 ```json
