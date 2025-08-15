@@ -188,7 +188,10 @@ If "include_dot": true is passed as an "extra" parameter, a [DOT string](https:/
 
 ## Viam event-manager Service Configuration
 
-The service configuration uses JSON to describe rules around events.
+Event manager configuration uses JSON to describe rules, notifications, and actions for events.
+
+You can try using a configuration helper for your event managers [found here](https://workflow_mcvella.viamapplications.com/).
+
 The following example configures three events:
 
 * The first triggers when the system is "active" and a configured sensor component gets values of a length greater than 3 at "big.good" within the get_readings() results, sending an email.
@@ -206,8 +209,8 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
     },
     "back_state_to_disk": true,
     "data_directory": "/data/viam/event_manager",
-    "app_api_key": "daifdkaddkdfhshfeasw",
-    "app_api_key_id": "weygwegqeyygadydagfd",
+    "app_api_key": "${environment.API_KEY}",
+    "app_api_key_id": "${environment.API_KEY_ID}",
     "email_module": "shared-alerting:email",
     "sms_module": "shared-alerting:sms",
     "push_module": "shared-alerting:push",
@@ -319,6 +322,22 @@ Video is captured starting 10 seconds before the event (ending 10 seconds after)
             ]
         }
     ]
+}
+```
+
+To use the environment variables, you must add them in the `modules` config:
+
+```json
+{
+  "modules": [
+    {
+      ...
+      "env": {
+        "API_KEY": "abcdefg987654321abcdefghi",
+        "API_KEY_ID": "1234abcd-123a-987b-1234567890abc"
+      }
+    }
+  ]
 }
 ```
 
@@ -616,7 +635,13 @@ Any number of rules can be configured for a given event.
 
 ##### rule type
 
-*enum detection|classification|tracker|time*
+*enum detection|classification|tracker|time|call*
+
+**Common Parameters for All Rule Types:**
+
+| Key | Type | Inclusion | Description |
+| ---- | ---- | --------- | ----------- |
+| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. **Note: This parameter is only supported for detection, classification, tracker, and call rule types.** |
 
 If *type* is **detection**, *camera* (a configured camera included in *resources*), *confidence_pct* (percent confidence threshold out of 1), and *class_regex* (regular expression to match detection class/label, defaults to any class) must be defined. The system will first call `get_image()` on the camera component and then use the detector service's `get_detections()` method with that image.
 
@@ -653,7 +678,20 @@ If *type* is **call**, a *resource* configured in [resources](#resources) must b
 | `result_function` | string | Optional | A python function to call on the result.  Currently supported: len, any |
 | `result_operator` | string | **Required** | A operator to evaluate against the result.  Currently supported: eq, ne, lt, lte, gt, gte, regex, in, hasattr. |
 | `result_value` | string | **Required** | The value to use in the operator evaluation. |
+| `fail_eval` | boolean | Optional | Controls how the rule evaluates when an error occurs. If set to true, the rule evaluates to true when it fails. If set to false, the rule evaluates to false when it fails. If not specified (default), the rule does not evaluate when it fails. |
 | `inverse_pause_secs` | string | Optional | A duration to pause event evaluation if the result evaluates to false. |
+
+Example call rule with fail_eval:
+```json
+{
+    "type": "call",
+    "resource": "api_service",
+    "method": "get_status",
+    "result_operator": "eq",
+    "result_value": "ok",
+    "fail_eval": true
+}
+```
 
 Example motor action that sets motor power to 100% immediately:
 ```json
@@ -678,3 +716,4 @@ To run locally, point to the binary at:
 ``` bash
 dist/main
 ```
+

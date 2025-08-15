@@ -51,6 +51,25 @@ class TestCallRuleInitialization(unittest.TestCase):
         self.assertEqual(rule.inverse_pause_secs, 60)
         self.assertEqual(rule.type, "call")
 
+    def test_rule_call_initialization_with_fail_eval(self):
+        """Test that a RuleCall can be properly initialized with fail_eval"""
+        rule_config = {
+            "resource": "api_service",
+            "method": "get_status",
+            "result_operator": "eq",
+            "result_value": "ok",
+            "fail_eval": True
+        }
+        
+        rule = RuleCall(**rule_config)
+        
+        self.assertEqual(rule.resource, "api_service")
+        self.assertEqual(rule.method, "get_status")
+        self.assertEqual(rule.result_operator, "eq")
+        self.assertEqual(rule.result_value, "ok")
+        self.assertEqual(rule.fail_eval, True)
+        self.assertEqual(rule.type, "call")
+
 class TestCallRuleEvaluation(unittest.IsolatedAsyncioTestCase):
     @patch('src.rules.call_method')
     @patch('src.rules.getParam')
@@ -313,6 +332,91 @@ class TestCallRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         self.assertTrue(result["triggered"])
         self.assertEqual(result["resource"], "camera1")
+
+    @patch('src.rules.call_method')
+    @patch('src.rules.getParam')
+    async def test_call_rule_fail_eval_true(self, mock_get_param, mock_call_method):
+        """Test call rule evaluation with fail_eval set to True"""
+        rule = RuleCall()
+        rule.type = "call"
+        rule.resource = "api_service"
+        rule.method = "get_status"
+        rule.fail_eval = True
+        rule.result_operator = "eq"
+        rule.result_value = "ok"
+
+        # Mock logger
+        mock_logger = MagicMock()
+        mock_get_param.return_value = mock_logger
+
+        # Mock API call to raise an exception
+        mock_call_method.side_effect = Exception("API error")
+
+        resources = {}
+        result = await eval_rule(rule, resources)
+
+        self.assertTrue(result["triggered"])
+        self.assertEqual(result["value"], None)
+        self.assertEqual(result["resource"], "api_service")
+        mock_logger.error.assert_called_once()
+        mock_logger.debug.assert_called_with("call rule failed, using fail_eval: True")
+
+    @patch('src.rules.call_method')
+    @patch('src.rules.getParam')
+    async def test_call_rule_fail_eval_false(self, mock_get_param, mock_call_method):
+        """Test call rule evaluation with fail_eval set to False"""
+        rule = RuleCall()
+        rule.type = "call"
+        rule.resource = "api_service"
+        rule.method = "get_status"
+        rule.fail_eval = False
+        rule.result_operator = "eq"
+        rule.result_value = "ok"
+
+        # Mock logger
+        mock_logger = MagicMock()
+        mock_get_param.return_value = mock_logger
+
+        # Mock API call to raise an exception
+        mock_call_method.side_effect = Exception("API error")
+
+        resources = {}
+        result = await eval_rule(rule, resources)
+
+        self.assertFalse(result["triggered"])
+        self.assertEqual(result["value"], None)
+        self.assertEqual(result["resource"], "api_service")
+        mock_logger.error.assert_called_once()
+        mock_logger.debug.assert_called_with("call rule failed, using fail_eval: False")
+
+    @patch('src.rules.call_method')
+    @patch('src.rules.getParam')
+    async def test_call_rule_fail_eval_none(self, mock_get_param, mock_call_method):
+        """Test call rule evaluation with fail_eval set to None (default behavior)"""
+        rule = RuleCall()
+        rule.type = "call"
+        rule.resource = "api_service"
+        rule.method = "get_status"
+        rule.fail_eval = None
+        rule.result_operator = "eq"
+        rule.result_value = "ok"
+
+        # Mock logger
+        mock_logger = MagicMock()
+        mock_get_param.return_value = mock_logger
+
+        # Mock API call to raise an exception
+        mock_call_method.side_effect = Exception("API error")
+
+        resources = {}
+        result = await eval_rule(rule, resources)
+
+        self.assertFalse(result["triggered"])
+        # When fail_eval is None, the response should not be modified
+        self.assertNotIn("value", result)
+        self.assertNotIn("resource", result)
+        mock_logger.error.assert_called_once()
+        # Should not have the debug message about fail_eval since it's None
 
 if __name__ == '__main__':
     unittest.main() 
