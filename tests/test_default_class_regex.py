@@ -29,7 +29,7 @@ class TestDefaultClassRegex(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value =  ([mock_image], {})
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -68,7 +68,7 @@ class TestDefaultClassRegex(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value =  ([mock_image], {})
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -107,7 +107,7 @@ class TestDefaultClassRegex(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value =  ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
@@ -146,7 +146,7 @@ class TestDefaultClassRegex(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value =  ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]

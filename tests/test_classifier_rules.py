@@ -27,7 +27,7 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
@@ -45,7 +45,7 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                         result = await eval_rule(rule, mock_resources)
                         
                         self.assertTrue(result["triggered"])
-                        mock_camera.get_image.assert_called_once()
+                        mock_camera.get_images.assert_called_once()
                         mock_classifier.get_classifications.assert_called_once_with(
                             mock_image, count=10, extra={}
                         )
@@ -68,7 +68,7 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
@@ -100,7 +100,7 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
@@ -134,7 +134,7 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = mock_classifications

@@ -48,7 +48,8 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
+
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -68,7 +69,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                         self.assertTrue(result["triggered"])
                         self.assertEqual(result["value"], "person")
                         self.assertEqual(result["resource"], "cam1")
-                        mock_camera.get_image.assert_called_once()
+                        mock_camera.get_images.assert_called_once()
                         mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_no_matching_class(self):
@@ -88,7 +89,8 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
+
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -102,7 +104,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                     result = await eval_rule(rule, mock_resources)
                     
                     self.assertFalse(result["triggered"])
-                    mock_camera.get_image.assert_called_once()
+                    mock_camera.get_images.assert_called_once()
                     mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_low_confidence(self):
@@ -122,7 +124,8 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
+
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -136,7 +139,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                     result = await eval_rule(rule, mock_resources)
                     
                     self.assertFalse(result["triggered"])
-                    mock_camera.get_image.assert_called_once()
+                    mock_camera.get_images.assert_called_once()
                     mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_multiple_detections(self):
@@ -160,7 +163,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection1, mock_detection2]
@@ -180,7 +183,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                         self.assertTrue(result["triggered"])
                         self.assertEqual(result["value"], "car")
                         self.assertEqual(result["resource"], "cam1")
-                        mock_camera.get_image.assert_called_once()
+                        mock_camera.get_images.assert_called_once()
                         mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_no_detections(self):
@@ -196,7 +199,8 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_image = MagicMock()
         
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
+
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = []  # No detections
@@ -210,7 +214,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                     result = await eval_rule(rule, mock_resources)
                     
                     self.assertFalse(result["triggered"])
-                    mock_camera.get_image.assert_called_once()
+                    mock_camera.get_images.assert_called_once()
                     mock_detector.get_detections.assert_called_once_with(mock_image, extra={})
     
     async def test_detector_rule_exception_handling(self):
@@ -224,7 +228,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         # Mock dependencies
         mock_camera = AsyncMock()
-        mock_camera.get_image.side_effect = Exception("Camera error")
+        mock_camera.get_images.side_effect = Exception("Camera error")
         
         mock_detector = AsyncMock()
         
@@ -240,7 +244,7 @@ class TestDetectorRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                         self.assertFalse(result["triggered"])
                         mock_logger.error.assert_called_once()
                     except Exception:
-                        mock_camera.get_image.assert_called_once()
+                        mock_camera.get_images.assert_called_once()
                         pass
 
 if __name__ == '__main__':
