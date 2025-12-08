@@ -703,16 +703,40 @@ Example motor action that sets motor power to 100% immediately:
 }
 ```
 
-## Building and running
+## Local build and run
 
-This project is set up to be build with pyinstaller, which can be run by calling:
-
-``` bash
-sh build.sh
-```
-
-To run locally, point to the binary at:
+This project is set up to be built with pyinstaller, which can be run by calling:
 
 ``` bash
-dist/main
+make build
 ```
+
+To run locally with the built binary, point to the binary (as a local module) at:
+
+``` bash
+<path/to/repo>/dist/main
+```
+
+You can also run as a local module by simply pointing to:
+
+``` bash
+<path/to/repo>/run.sh
+```
+
+## Build/deploy for the registry
+
+This module uses Viam cloud build for linux distros.  Your code must be first pushed to main prior to starting a build.
+Then kick off the build:
+
+``` bash
+viam module build start --version x.y.z
+```
+
+To build/deploy for darwin/arm64:
+
+``` bash
+make build
+viam module upload --upload=dist/main --platform=darwin/arm64 --version=x.y.z
+```
+
+This process could likely be unified across platforms.
