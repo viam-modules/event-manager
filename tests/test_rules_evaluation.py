@@ -177,7 +177,7 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]
@@ -195,7 +195,7 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
                         result = await eval_rule(rule, mock_resources)
                         
                         self.assertTrue(result["triggered"])
-                        mock_camera.get_image.assert_called_once()
+                        mock_camera.get_images.assert_called_once()
                         mock_detector.get_detections.assert_called_once_with(
                             mock_image, extra={}
                         )
@@ -216,7 +216,7 @@ class TestRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         
         mock_image = MagicMock()
         mock_camera = AsyncMock()
-        mock_camera.get_image.return_value = mock_image
+        mock_camera.get_images.return_value = ([mock_image], {})
         
         mock_detector = AsyncMock()
         mock_detector.get_detections.return_value = [mock_detection]

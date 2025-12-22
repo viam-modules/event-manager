@@ -102,15 +102,36 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
         case "detection":
             try:
                 if isinstance(rule, RuleDetector):
+                    getParam('logger').debug("Evaluating detection rule")
                     detector = _get_vision_service(rule.detector, resources)
-                    
+                    getParam('logger').debug(f"Got detector {rule.detector}")
+
                     # Get the camera component
                     camera = _get_camera_component(rule.camera, resources)
-                    
-                    # Get an image from the camera
-                    image = await camera.get_image(extra=getattr(rule, 'extra', {}))
-                    
-                    # Get detections using the image
+                    getParam('logger').debug(f"Got camera {rule.camera}")
+
+                    # Get images from the camera
+                    images, metadata = await camera.get_images(extra=getattr(rule, 'extra', {}))
+                    getParam('logger').debug(f"Got {len(images)} images (type={type(images)})")
+
+                    if not images:
+                        getParam('logger').warning(f"No images returned from camera '{rule.camera}'")
+                        return response
+
+                    # Use the first image (usually color)
+                    image = images[0]
+                    getParam('logger').debug(
+                        f"image: {getattr(image, 'name', None)}, "
+                        f"mime: {getattr(image, 'mime_type', None)}, "
+                        f"size: {getattr(image, 'width', None)}x{getattr(image, 'height', None)}"
+                    )
+
+                    # Run detection directly with NamedImage (inherits from ViamImage)
+                    getParam('logger').debug(
+                        f"Calling get_detections on {rule.detector} "
+                        f"with mime={getattr(image, 'mime_type', 'unknown')}"
+                    )
+
                     detections = await detector.get_detections(image, extra=getattr(rule, 'extra', {}))
                     
                     if detections:
@@ -131,17 +152,32 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                 # If fail_eval is None, don't modify the response (maintains original behavior)
         case "classification":
             try:
+                getParam('logger').debug("Evaluating classification rule")
                 if isinstance(rule, RuleClassifier):
                     classifier = _get_vision_service(rule.classifier, resources)
-                    
+                    getParam('logger').debug(f"Got classifier {rule.classifier}")
+
                     # Get the camera component
                     camera = _get_camera_component(rule.camera, resources)
+                    getParam('logger').debug(f"Got camera {rule.camera}")
                     
                     # Get an image from the camera
-                    image = await camera.get_image(extra=getattr(rule, 'extra', {}))
-                    
-                    # Get classifications using the image
+                    images, metadata = await camera.get_images(extra=getattr(rule, 'extra', {}))
+                    getParam('logger').debug(f"Got {len(images)} images")
+
+                    getParam('logger').debug(f"images type: {type(images)} length: {len(images)}")
+
+                    if not images:
+                        getParam('logger').warning(f"No images returned from camera '{rule.camera}'")
+                        return response
+                    else:
+                        image = images[0]
+                        getParam('logger').debug(f"image type: {type(image)} dir: {dir(image)}")
+
+                    # Now proceed to classification
+                    getParam('logger').debug(f"Calling get_classifications on {rule.classifier} with image {getattr(image, 'name', 'unknown')} mime {getattr(image, 'mime_type', 'unknown')}")
                     classifications = await classifier.get_classifications(image, count=10, extra=getattr(rule, 'extra', {}))
+
                     
                     if classifications:
                         for c in classifications:
@@ -157,7 +193,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     response["triggered"] = rule.fail_eval
                     response["value"] = None
                     response["resource"] = rule.camera
-                    getParam('logger').debug(f"classification rule failed, using fail_eval: {rule.fail_eval}")
+                    getParam('logger').error(f"classification rule failed, using fail_eval: {rule.fail_eval}")
                 # If fail_eval is None, don't modify the response (maintains original behavior)
         case "tracker":
             try:
