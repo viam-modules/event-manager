@@ -1,0 +1,68 @@
+name: Publish Module
+
+# We create new Viam module versions on Github releases.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag (e.g. v0.0.21)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish-module:
+    name: Build and upload to Viam Registry
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # viamrobotics/build-action@v1.7.3
+      - uses: viamrobotics/build-action@b885e11b378e05476ee0109c9fc8ecb387b508e2
+        with:
+          version: ${{ inputs.version || github.ref_name }}
+          ref: ${{ github.sha }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
+          token: ${{ github.token }}
+
+  notify-slack:
+    name: Notify Slack
+    needs: [publish-module]
+    if: always() && needs.publish-module.result != 'skipped'
+    runs-on: ubuntu-24.04
+    env:
+      # Mirrored into `env` because the `secrets` context is not readable from a
+      # step-level `if`, which is where these are tested below.
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    steps:
+      - name: Send Slack message
+        # Skipped rather than failed where the Slack secrets are unset: most
+        # module repos have none, and reddening every release over a missing
+        # token teaches people to ignore the red.
+        if: env.SLACK_BOT_TOKEN != '' && env.SLACK_CHANNEL_ID != ''
+        # slackapi/slack-github-action@v4.0.0
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          errors: true
+          payload: |
+            {
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+              "text": "Publish ${{ inputs.version || github.ref_name }} of ${{ github.repository }} ${{ needs.publish-module.result == 'success' && 'succeeded' || 'failed' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ needs.publish-module.result == 'success' && ':white_check_mark:' || ':x:' }} Publish *${{ inputs.version || github.ref_name }}* of `${{ github.repository }}` *${{ needs.publish-module.result == 'success' && 'succeeded' || 'failed' }}*\n\t<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.version || github.ref_name }}|Release ${{ inputs.version || github.ref_name }}>\n\t<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow run>"
+                  }
+                }
+              ]
+            }
