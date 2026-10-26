@@ -3,7 +3,7 @@ from typing import List
 
 def OR(list: List[bool]) -> bool:
     for item in list:
-        if item == True:
+        if item == True:  # noqa: E712  # a failed rule reports its fail_eval config value, possibly not a bool
             return True
     return False
 
@@ -13,7 +13,7 @@ def AND(list: List[bool]) -> bool:
         return False
     result = True
     for item in list:
-        if item == False:
+        if item == False:  # noqa: E712  # a failed rule reports its fail_eval config value, possibly not a bool
             result = False
     return result
 
@@ -21,7 +21,7 @@ def AND(list: List[bool]) -> bool:
 def XOR(list: List[bool]) -> bool:
     true_count = 0
     for item in list:
-        if item == True:
+        if item == True:  # noqa: E712  # a failed rule reports its fail_eval config value, possibly not a bool
             true_count = true_count + 1
     if true_count == 1:
         return True

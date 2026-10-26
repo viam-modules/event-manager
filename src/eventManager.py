@@ -449,9 +449,9 @@ class eventManager(Sensor, Reconfigurable):
         while not stop_event.is_set():
             try:
                 if (self.mode in event.modes) and (
-                    (event.is_triggered == False)
+                    (not event.is_triggered)
                     or (
-                        (event.is_triggered == True)
+                        event.is_triggered
                         and ((time.time() - event.last_triggered) >= event.get_effective_pause_duration())
                     )
                 ):
@@ -484,7 +484,7 @@ class eventManager(Sensor, Reconfigurable):
                     for rule in event.rules:
                         self.logger.debug(rule)
                         result = await rules.eval_rule(rule, event_resources)
-                        if result["triggered"] == True:
+                        if result["triggered"] == True:  # noqa: E712  # a failed rule reports its fail_eval config value, possibly not a bool
                             event.sequence_count_current = event.sequence_count_current + 1
                         else:
                             event.sequence_count_current = 0
@@ -522,7 +522,7 @@ class eventManager(Sensor, Reconfigurable):
 
                     # Check if rules evaluated to true
                     rules_triggered = (event.state != "paused") and (
-                        rules.logical_trigger(event.rule_logic_type, [res["triggered"] for res in rule_results]) == True
+                        rules.logical_trigger(event.rule_logic_type, [res["triggered"] for res in rule_results])
                     )
 
                     # Handle rule reset counters if we're in reset mode
@@ -565,7 +565,7 @@ class eventManager(Sensor, Reconfigurable):
 
                         # not all rules consider or capture images and labels, check if we have them
                         for rule in event.rules:
-                            if rule_results[rule_index]["triggered"] == True:
+                            if rule_results[rule_index]["triggered"] == True:  # noqa: E712  # a failed rule reports its fail_eval config value, possibly not a bool
                                 if hasattr(rule, "camera"):
                                     if "value" in rule_results[rule_index]:
                                         event.triggered_label = rule_results[rule_index]["value"]
@@ -601,7 +601,7 @@ class eventManager(Sensor, Reconfigurable):
                     to_wait = (1 / event.detection_hz) - elapsed
                     if to_wait > 0:
                         await asyncio.sleep(to_wait)
-                elif (event.is_triggered == True) and (event.actions_paused == False):
+                elif event.is_triggered and not event.actions_paused:
                     self.logger.debug("checking for ACTIONS")
                     event.state = "actioning"
 
@@ -700,14 +700,14 @@ class eventManager(Sensor, Reconfigurable):
                         result = {"triggered": True}
             elif name == "pause_triggered" and isinstance(args, dict):
                 for e in self.event_states:
-                    if (e.name == args.get("event", "")) and e.is_triggered == True:
+                    if (e.name == args.get("event", "")) and e.is_triggered:
                         e.state = "paused"
                         e.pause_reason = "manual"
                         e.actions_paused = True
                         result = {"paused": True}
             elif name == "respond_triggered" and isinstance(args, dict):
                 for e in self.event_states:
-                    if (e.name == args.get("event", "")) and e.is_triggered == True:
+                    if (e.name == args.get("event", "")) and e.is_triggered:
                         for action in e.actions:
                             await self.event_action(e, action, args.get("response", ""), self.robot_resources)
                 result = {"responded": True}
