@@ -1,4 +1,5 @@
 from .actionClass import Action
+from .globals import getParam
 from .notificationClass import NotificationEmail, NotificationPush, NotificationSMS, NotificationWebhookGET
 from .rules import RuleCall, RuleClassifier, RuleDetector, RuleTime, RuleTracker
 

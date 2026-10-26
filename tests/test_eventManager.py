@@ -1,4 +1,7 @@
+from unittest.mock import MagicMock, patch
+
 from src import events
+from src.globals import shared_state
 
 
 def test_backoff_schedule():
@@ -58,3 +61,17 @@ def test_backoff_schedule():
     event.continuous_trigger_start_time = 0
     event.backoff_adjustment = 0
     assert event.get_effective_pause_duration() == 60  # Back to base duration
+
+
+def test_backoff_schedule_logs_adjustment():
+    """A backoff adjustment is logged at debug level through the shared logger"""
+    event = events.Event(name="test_backoff_log", pause_alerting_on_event_secs=60, backoff_schedule={300: 120})
+    event.continuous_trigger_start_time = 1000
+    logger = MagicMock()
+
+    with patch.dict(shared_state, {"logger": logger}):
+        event._check_backoff_schedule(1360)
+
+    assert event.backoff_adjustment == 60
+    logger.debug.assert_called_once()
+    assert "Pause duration adjusted to 120s" in logger.debug.call_args.args[0]
