@@ -44,7 +44,6 @@ class TestVideoStore:
 
         # Setup mock resources
         mock_generic = MagicMock()
-        mock_resource_name = "rdk:component:generic:test-store"
         mock_resources["_deps"] = {GenericClient.get_resource_name("test-store"): mock_generic}
 
         # Test function

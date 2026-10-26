@@ -234,9 +234,6 @@ class eventManager(Sensor, Reconfigurable):
         # Initialize database if needed
         self._init_db()
 
-        # Store previous event states for potential restoration
-        old_event_states = self.event_states
-
         # reset event states
         self.event_states = []
 

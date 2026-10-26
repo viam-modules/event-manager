@@ -223,7 +223,7 @@ class TestNotify:
             patch("urllib.request.urlopen", return_value=mock_url_open),
         ):
             # Call notify
-            result = await notify(mock_event, notification, mock_resources)
+            await notify(mock_event, notification, mock_resources)
 
             # Verify urllib was called correctly
             import urllib.request

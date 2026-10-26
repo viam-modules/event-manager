@@ -36,8 +36,6 @@ class Event:
     continuous_trigger_start_time: float = 0  # When the event first started triggering continuously
 
     def __init__(self, **kwargs):
-        notification_settings = kwargs.get("notification_settings")
-
         # these are optional
         self.__dict__["actions"] = []
         self.__dict__["notifications"] = []

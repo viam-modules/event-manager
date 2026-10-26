@@ -99,7 +99,7 @@ class TestTimestampWriting:
         # Mock from_dm_from_extra to simulate data manager capture
         with patch("src.eventManager.from_dm_from_extra", return_value=True):
             # Get readings from event manager
-            readings = await manager.get_readings(extra={})
+            await manager.get_readings(extra={})
 
             # Verify dm_sent_status was updated correctly for both events
             assert "Event 1" in manager.dm_sent_status

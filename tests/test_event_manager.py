@@ -93,7 +93,7 @@ class TestEventManagerBasics:
 
         # Mock necessary components for get_readings
         with (
-            patch("src.eventManager.pydot.Graph") as mock_graph,
+            patch("src.eventManager.pydot.Graph"),
             patch("src.eventManager.layer_color", return_value="#123456"),
         ):
             # Call get_readings with empty extra
@@ -125,7 +125,7 @@ class TestEventManagerBasics:
 
         # Mock necessary components for get_readings
         with (
-            patch("src.eventManager.pydot.Graph") as mock_graph,
+            patch("src.eventManager.pydot.Graph"),
             patch("src.eventManager.layer_color", return_value="#123456"),
         ):
             # Call get_readings with filter
@@ -369,8 +369,8 @@ class TestResourceAvailability:
 
         # Mock necessary dependencies to prevent infinite loop
         with (
-            patch("src.eventManager.globals.setParam") as mock_set_param,
-            patch("src.eventManager.rules.eval_rule", new_callable=AsyncMock) as mock_eval_rule,
+            patch("src.eventManager.globals.setParam"),
+            patch("src.eventManager.rules.eval_rule", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             # Set up sleep to raise CancelledError after first check
