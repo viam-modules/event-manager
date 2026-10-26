@@ -1,15 +1,14 @@
-import pytest
 import sys
-import os
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
-import asyncio
 from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.triggered import request_capture, get_triggered_cloud, delete_from_cloud, _name_clean, _label, _get_video_store
+from src.triggered import _get_video_store, _label, _name_clean, delete_from_cloud, get_triggered_cloud, request_capture
 
 # Remove the global marker
 # pytestmark = pytest.mark.asyncio
@@ -58,7 +57,6 @@ class TestVideoStore:
     def test_get_video_store_camera(self, mock_resources):
         """Test getting video store with camera client"""
         from viam.components.camera import CameraClient
-        from viam.components.generic import GenericClient
 
         # Setup mock resources
         mock_camera = MagicMock()

@@ -1,18 +1,16 @@
-import pytest
 import sys
-import os
-from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
 import time
-import re
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.actions import flip_action_status, eval_action, do_action
-from src.events import Event
 from src.actionClass import Action
+from src.actions import do_action, eval_action, flip_action_status
+from src.events import Event
 
 
 class TestActionFunctions:

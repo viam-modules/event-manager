@@ -1,19 +1,16 @@
-import pytest
-import sys
-import os
-from pathlib import Path
 import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
-import time
-from datetime import datetime, timedelta
-import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.eventManager import eventManager
 from src.events import Event
-from src.rules import RuleTime, TimeRange
+from src.rules import RuleTime
 
 
 @pytest.mark.asyncio
@@ -95,7 +92,7 @@ class TestMissingModules:
         }
 
         # Create a test event with notifications
-        from src.notificationClass import NotificationSMS, NotificationEmail
+        from src.notificationClass import NotificationEmail, NotificationSMS
 
         event = Event(name="Test Event")
         event.is_triggered = True

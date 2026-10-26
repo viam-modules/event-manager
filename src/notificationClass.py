@@ -1,5 +1,6 @@
+from typing import Optional
+
 from PIL import Image
-from typing import Any, Optional
 
 
 class NotificationSMS:

@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-import unittest
 import sys
-import os
+import unittest
 from pathlib import Path
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import test modules
+from tests.test_classifier_rules import TestClassifierRuleEvaluation, TestErrorHandling
 from tests.test_events import TestEvent
-from tests.test_rules import TestRules, TestRuleEvaluation
+from tests.test_logic import TestLogicFunctions
+from tests.test_rules import TestRuleEvaluation, TestRules
 from tests.test_rules_evaluation import (
-    TestRuleTrackerInitialization,
     TestGetValueByDotNotation,
     TestLogicalTrigger,
+    TestRuleTrackerInitialization,
+)
+from tests.test_rules_evaluation import (
     TestRuleEvaluation as TestRuleEvaluationExt,
 )
-from tests.test_classifier_rules import TestClassifierRuleEvaluation, TestErrorHandling
-from tests.test_logic import TestLogicFunctions
 
 
 def create_test_suite():

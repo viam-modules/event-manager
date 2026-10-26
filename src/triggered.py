@@ -1,19 +1,15 @@
-import bson
 import asyncio
-from typing import Dict, Any, List, Optional, Union, TypeVar, Tuple, cast
-
-from PIL import Image
-from viam.proto.app.data import Filter
-from viam.components.camera import CameraClient, Camera
-from viam.components.generic import GenericClient, Generic
-from viam.app.viam_client import ViamClient
-from viam.gen.app.data.v1.data_pb2 import ORDER_DESCENDING
-from viam.proto.app.data import BinaryID, Order
-from .globals import getParam
-from . import events
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Union, cast
 
-import io
+import bson
+from viam.app.viam_client import ViamClient
+from viam.components.camera import CameraClient
+from viam.components.generic import Generic, GenericClient
+from viam.proto.app.data import BinaryID, Filter, Order
+
+from . import events
+from .globals import getParam
 
 
 async def request_capture(event: events.Event, resources: Dict[str, Any]) -> Optional[Dict[str, Any]]:

@@ -1,27 +1,25 @@
-import pytest
-import sys
-import os
-from pathlib import Path
 import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
+import sys
 import time
-from datetime import datetime, timedelta
-import json
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.eventManager import eventManager
-from src.events import Event
-from src.actions import Action
-from viam.utils import SensorReading
+from google.protobuf.struct_pb2 import Struct
+from viam.components.camera import Camera
+from viam.components.generic import Generic as GenericComponent
 from viam.proto.app.robot import ModuleConfig
 from viam.proto.common import ResourceName
 from viam.resource.base import ResourceBase
 from viam.services.generic import Generic as GenericService
-from viam.components.generic import Generic as GenericComponent
-from viam.components.camera import Camera
-from google.protobuf.struct_pb2 import Struct
+
+from src.actions import Action
+from src.eventManager import eventManager
+from src.events import Event
 from src.notificationClass import NotificationPush
 from src.rules import RuleDetector
 

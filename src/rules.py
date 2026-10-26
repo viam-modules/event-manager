@@ -1,14 +1,14 @@
 import re
-import asyncio
 from datetime import datetime
-from typing import cast, Dict, Any, List, Union, Optional, TypeVar, Callable, Tuple, overload
-from PIL import Image
-from . import logic
-from .resourceUtils import call_method
-from .globals import getParam
-from viam.services.vision import VisionClient, Detection, Classification, Vision
-from viam.media.utils.pil import viam_to_pil_image
+from typing import Any, Dict, List, Optional, Union, cast
+
 from viam.components.camera import CameraClient
+from viam.media.utils.pil import viam_to_pil_image
+from viam.services.vision import Vision, VisionClient
+
+from . import logic
+from .globals import getParam
+from .resourceUtils import call_method
 
 
 class TimeRange:

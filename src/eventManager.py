@@ -1,41 +1,34 @@
-from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast
+import asyncio
+import copy
+import os
+import pickle
+import re
+import sqlite3
+import time
+import traceback
+from datetime import datetime, timedelta, timezone
+from typing import Any, ClassVar, Dict, Mapping, Optional, cast
 
+import pydot  # type: ignore
 from typing_extensions import Self
-from typing import Final
-
+from viam.app.viam_client import ViamClient
+from viam.components.camera import Camera
+from viam.components.generic import Generic as GenericComponent
+from viam.components.motor import Motor
+from viam.components.sensor import Sensor
+from viam.errors import NoCaptureToStoreError
 from viam.module.types import Reconfigurable
 from viam.proto.app.robot import ModuleConfig
-from viam.proto.common import ResourceName, Vector3
+from viam.proto.common import ResourceName
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
-
+from viam.rpc.dial import DialOptions
 from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
-from viam.components.generic import Generic as GenericComponent
-from viam.components.sensor import Sensor
-from viam.components.camera import Camera
-from viam.components.motor import Motor
-from viam.utils import SensorReading
-from viam.errors import NoCaptureToStoreError
-from viam.utils import from_dm_from_extra
+from viam.utils import SensorReading, ValueTypes, from_dm_from_extra, struct_to_dict
 
-from viam.utils import ValueTypes, struct_to_dict
-from viam.app.viam_client import ViamClient
-from viam.rpc.dial import DialOptions
+from . import actions, events, globals, notifications, rules, triggered
 
-from . import events, rules, notifications, triggered, actions, globals
-
-import time
-import copy
-import asyncio
-import sqlite3
-import os
-import json
-import pickle
-from datetime import datetime, timezone, timedelta
-import re
-import pydot  # type: ignore
-import traceback
 # from enum import Enum
 
 # class Modes(Enum):
@@ -221,7 +214,7 @@ class eventManager(Sensor, Reconfigurable):
                     self.logger.info(f"Restored state for event: {event_name}")
 
             conn.close()
-            self.logger.info(f"State restoration complete")
+            self.logger.info("State restoration complete")
         except Exception as e:
             self.logger.error(f"Error restoring event states from disk: {e}")
             self.logger.error(traceback.format_exc())

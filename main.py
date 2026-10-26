@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
-import sys
 
-from viam.module.module import Module
 from viam.components.sensor import Sensor
+from viam.module.module import Module
 from viam.resource.registry import Registry, ResourceCreatorRegistration
 
 from src.eventManager import eventManager

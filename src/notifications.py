@@ -1,12 +1,12 @@
-import urllib.request
 import base64
-from io import BytesIO
+import urllib.request
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Union, Optional
-from PIL import Image
+from io import BytesIO
+from typing import Any, Dict, List, Union
+
 from . import events
-from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
 from .globals import getParam
+from .notificationClass import NotificationEmail, NotificationPush, NotificationSMS, NotificationWebhookGET
 
 
 async def notify(

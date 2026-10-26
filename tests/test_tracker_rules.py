@@ -1,10 +1,8 @@
-import pytest
 import sys
-import os
 from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
-import re
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))

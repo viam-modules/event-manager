@@ -1,20 +1,17 @@
-import pytest
 import sys
-import os
+from datetime import timezone
 from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
-from io import BytesIO
-import base64
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from PIL import Image
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.notifications import notify, check_sms_response
-from src.notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
 from src.events import Event
+from src.notificationClass import NotificationEmail, NotificationPush, NotificationSMS, NotificationWebhookGET
+from src.notifications import check_sms_response, notify
 
 
 @pytest.fixture

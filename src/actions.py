@@ -1,10 +1,10 @@
 import re
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
-from .globals import getParam
-from .events import Event
 from .actionClass import Action
+from .events import Event
+from .globals import getParam
 from .resourceUtils import call_method
 
 

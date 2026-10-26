@@ -1,21 +1,19 @@
-import pytest
-import sys
 import os
-import tempfile
-import sqlite3
-from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch
-import time
 import shutil
-import pickle
+import sqlite3
+import sys
+import tempfile
+import time
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.eventManager import eventManager
 from src.events import Event
-from src.rules import RuleTime
 
 
 @pytest.mark.asyncio

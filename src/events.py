@@ -1,6 +1,6 @@
-from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
-from .rules import RuleClassifier, RuleDetector, RuleTracker, RuleTime, RuleCall
 from .actionClass import Action
+from .notificationClass import NotificationEmail, NotificationPush, NotificationSMS, NotificationWebhookGET
+from .rules import RuleCall, RuleClassifier, RuleDetector, RuleTime, RuleTracker
 
 
 class Event:

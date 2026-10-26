@@ -1,10 +1,9 @@
-import pytest
 import sys
-import os
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import time
-from datetime import datetime, timezone
+
+import pytest
 from viam.errors import NoCaptureToStoreError
 
 # Add the source directory to the path so we can import the modules

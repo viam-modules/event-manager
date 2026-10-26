@@ -1,12 +1,11 @@
-import unittest
 import sys
-import os
+import unittest
 from pathlib import Path
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.logic import AND, OR, XOR, NAND, NOR, XNOR
+from src.logic import AND, NAND, NOR, OR, XNOR, XOR
 
 
 class TestLogicFunctions(unittest.TestCase):

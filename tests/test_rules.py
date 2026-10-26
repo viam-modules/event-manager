@@ -1,13 +1,11 @@
-import unittest
 import sys
-import os
+import unittest
 from pathlib import Path
-import asyncio
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.rules import RuleDetector, RuleClassifier, RuleTime, RuleTracker, RuleCall, TimeRange
+from src.rules import RuleClassifier, RuleDetector, RuleTime
 
 
 class TestRules(unittest.TestCase):

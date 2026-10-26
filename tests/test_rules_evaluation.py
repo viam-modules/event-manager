@@ -1,25 +1,21 @@
-import unittest
 import sys
-import os
-from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
-import re
+import unittest
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.rules import (
+    RuleCall,
     RuleDetector,
-    RuleClassifier,
     RuleTime,
     RuleTracker,
-    RuleCall,
     TimeRange,
     eval_rule,
-    logical_trigger,
     get_value_by_dot_notation,
+    logical_trigger,
 )
 
 

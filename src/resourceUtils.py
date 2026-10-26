@@ -1,12 +1,12 @@
 import json
-from typing import cast, Dict, Any, Optional, Protocol, runtime_checkable, Union
+from typing import Any, Dict, Optional, Protocol, cast, runtime_checkable
 
 from viam.components.generic import Generic as GenericComponent
+from viam.components.motor import Motor
+from viam.components.sensor import Sensor
+from viam.resource.base import ResourceBase
 from viam.services.generic import Generic as GenericService
 from viam.services.vision import VisionClient
-from viam.components.sensor import Sensor
-from viam.components.motor import Motor
-from viam.resource.base import ResourceBase
 
 
 @runtime_checkable
