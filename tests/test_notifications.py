@@ -16,12 +16,14 @@ from src.notifications import notify, check_sms_response
 from src.notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
 from src.events import Event
 
+
 @pytest.fixture
 def mock_image():
     """Create a mock PIL image for testing."""
     # Create a small test image
-    image = Image.new('RGB', (100, 100), color='red')
+    image = Image.new("RGB", (100, 100), color="red")
     return image
+
 
 @pytest.fixture
 def mock_event():
@@ -31,6 +33,7 @@ def mock_event():
     event.triggered_camera = "front_door"
     return event
 
+
 @pytest.fixture
 def mock_resources():
     """Create mock resources for testing."""
@@ -38,75 +41,61 @@ def mock_resources():
     email_module = AsyncMock()
     sms_module = AsyncMock()
     push_module = AsyncMock()
-    
+
     # Configure mock responses
     email_module.do_command.return_value = {"status": "sent"}
     sms_module.do_command.return_value = {"status": "sent"}
     push_module.do_command.return_value = {"status": "sent", "sent_count": 1, "failed_count": 0}
-    
-    return {
-        "email_module": email_module,
-        "sms_module": sms_module,
-        "push_module": push_module
-    }
+
+    return {"email_module": email_module, "sms_module": sms_module, "push_module": push_module}
+
 
 # Class tests converted from unittest format
 class TestNotificationClasses:
     """Tests for the notification classes."""
-    
+
     def test_email_notification_initialization(self):
         """Test that NotificationEmail can be properly initialized"""
         email_config = {
             "preset": "Alert",
             "to": "test@example.com",
             "subject": "Test Alert",
-            "body": "This is a test alert"
+            "body": "This is a test alert",
         }
-        
+
         notification = NotificationEmail(**email_config)
-        
+
         assert notification.preset == "Alert"
         assert notification.to == "test@example.com"
         assert notification.subject == "Test Alert"
         assert notification.body == "This is a test alert"
-    
+
     def test_sms_notification_initialization(self):
         """Test that NotificationSMS can be properly initialized"""
-        sms_config = {
-            "preset": "Alert",
-            "to": "+15555555555",
-            "body": "Test Alert SMS"
-        }
-        
+        sms_config = {"preset": "Alert", "to": "+15555555555", "body": "Test Alert SMS"}
+
         notification = NotificationSMS(**sms_config)
-        
+
         assert notification.preset == "Alert"
         assert notification.to == "+15555555555"
         assert notification.body == "Test Alert SMS"
-    
+
     def test_webhook_notification_initialization(self):
         """Test that NotificationWebhookGET can be properly initialized"""
-        webhook_config = {
-            "preset": "Alert",
-            "url": "https://example.com/webhook",
-            "query_params": {"event": "test"}
-        }
-        
+        webhook_config = {"preset": "Alert", "url": "https://example.com/webhook", "query_params": {"event": "test"}}
+
         notification = NotificationWebhookGET(**webhook_config)
-        
+
         assert notification.preset == "Alert"
         assert notification.url == "https://example.com/webhook"
         assert notification.query_params == {"event": "test"}
 
     def test_push_notification_initialization(self):
         """Test that NotificationPush can be properly initialized"""
-        push_config = {
-            "preset": "PushAlert",
-            "fcm_tokens": ["token1", "token2"]
-        }
-        
+        push_config = {"preset": "PushAlert", "fcm_tokens": ["token1", "token2"]}
+
         notification = NotificationPush(**push_config)
-        
+
         assert notification.preset == "PushAlert"
         assert notification.fcm_tokens == ["token1", "token2"]
         assert notification.type == "push"
@@ -115,29 +104,25 @@ class TestNotificationClasses:
 @pytest.mark.asyncio
 class TestNotify:
     """Tests for the notify function."""
-    
+
     async def test_notify_email_with_image(self, mock_event, mock_image, mock_resources):
         """Test sending an email notification with an image."""
         # Create an email notification with an image
-        notification = NotificationEmail(
-            to="test@example.com",
-            preset="Alert",
-            include_image=True
-        )
+        notification = NotificationEmail(to="test@example.com", preset="Alert", include_image=True)
         notification.image = mock_image
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify the email module was called correctly
             mock_resources["email_module"].do_command.assert_called_once()
-            
+
             # Extract the call arguments
             call_args = mock_resources["email_module"].do_command.call_args[0][0]
-            
+
             # Verify arguments
             assert call_args["command"] == "send"
             assert call_args["to"] == "test@example.com"
@@ -150,28 +135,24 @@ class TestNotify:
             assert "media_mime_type" in call_args["template_vars"]
             # Email should NOT have media_base64 directly in the notification args
             assert "media_base64" not in call_args
-    
+
     async def test_notify_email_without_image(self, mock_event, mock_resources):
         """Test sending an email notification without an image."""
         # Create an email notification without an image
-        notification = NotificationEmail(
-            to="test@example.com",
-            preset="Alert",
-            include_image=False
-        )
-        
+        notification = NotificationEmail(to="test@example.com", preset="Alert", include_image=False)
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify the email module was called correctly
             mock_resources["email_module"].do_command.assert_called_once()
-            
+
             # Extract the call arguments
             call_args = mock_resources["email_module"].do_command.call_args[0][0]
-            
+
             # Verify arguments
             assert call_args["command"] == "send"
             assert call_args["to"] == "test@example.com"
@@ -179,29 +160,25 @@ class TestNotify:
             assert "template_vars" in call_args
             assert call_args["template_vars"]["event_name"] == "Test Event"
             assert "image_base64" not in call_args["template_vars"]
-    
+
     async def test_notify_sms_with_image(self, mock_event, mock_image, mock_resources):
         """Test sending an SMS notification with an image."""
         # Create an SMS notification with an image
-        notification = NotificationSMS(
-            to="+15555555555",
-            preset="Alert",
-            include_image=True
-        )
+        notification = NotificationSMS(to="+15555555555", preset="Alert", include_image=True)
         notification.image = mock_image
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify the SMS module was called correctly
             mock_resources["sms_module"].do_command.assert_called_once()
-            
+
             # Extract the call arguments
             call_args = mock_resources["sms_module"].do_command.call_args[0][0]
-            
+
             # Verify arguments
             assert call_args["command"] == "send"
             assert call_args["to"] == "+15555555555"
@@ -209,72 +186,65 @@ class TestNotify:
             assert "template_vars" in call_args
             assert call_args["media_base64"] is not None
             assert call_args["media_mime_type"] == "image/jpeg"
-    
+
     async def test_notify_sms_without_image(self, mock_event, mock_resources):
         """Test sending an SMS notification without an image."""
         # Create an SMS notification without an image
-        notification = NotificationSMS(
-            to="+15555555555",
-            preset="Alert",
-            include_image=False
-        )
-        
+        notification = NotificationSMS(to="+15555555555", preset="Alert", include_image=False)
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify the SMS module was called correctly
             mock_resources["sms_module"].do_command.assert_called_once()
-            
+
             # Extract the call arguments
             call_args = mock_resources["sms_module"].do_command.call_args[0][0]
-            
+
             # Verify arguments
             assert call_args["command"] == "send"
             assert call_args["to"] == "+15555555555"
             assert call_args["preset"] == "Alert"
             assert "template_vars" in call_args
             assert "media_base64" not in call_args or call_args["media_base64"] is None
-    
+
     async def test_notify_webhook(self, mock_event, mock_resources):
         """Test sending a webhook notification."""
         # Create a webhook notification
-        notification = NotificationWebhookGET(
-            url="https://example.com/webhook"
-        )
-        
+        notification = NotificationWebhookGET(url="https://example.com/webhook")
+
         # Mock the logger and urllib
         mock_logger = MagicMock()
         mock_url_open = MagicMock()
         mock_url_open.read.return_value = b"Success"
-        
-        with patch('src.notifications.getParam', return_value=mock_logger), \
-             patch('urllib.request.urlopen', return_value=mock_url_open):
+
+        with (
+            patch("src.notifications.getParam", return_value=mock_logger),
+            patch("urllib.request.urlopen", return_value=mock_url_open),
+        ):
             # Call notify
             result = await notify(mock_event, notification, mock_resources)
-            
+
             # Verify urllib was called correctly
             import urllib.request
+
             urllib.request.urlopen.assert_called_once_with("https://example.com/webhook")
-    
+
     async def test_notify_push_with_image(self, mock_event, mock_image, mock_resources):
         """Test sending a push notification with an image."""
-        notification = NotificationPush(
-            fcm_tokens=["test_token1"],
-            preset="PushAlert",
-            include_image=True
-        )
+        notification = NotificationPush(fcm_tokens=["test_token1"], preset="PushAlert", include_image=True)
         notification.image = mock_image
-        
+
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             await notify(mock_event, notification, mock_resources)
-            
+
             mock_resources["push_module"].do_command.assert_called_once()
             call_args = mock_resources["push_module"].do_command.call_args[0][0]
-            
+
             assert call_args["command"] == "send"
             assert call_args["fcm_tokens"] == ["test_token1"]
             assert call_args["preset"] == "PushAlert"
@@ -287,16 +257,12 @@ class TestNotify:
 
     async def test_notify_push_without_image(self, mock_event, mock_resources):
         """Test sending a push notification without an image."""
-        notification = NotificationPush(
-            fcm_tokens=["test_token2"],
-            preset="PushUpdate",
-            include_image=False
-        )
-        
+        notification = NotificationPush(fcm_tokens=["test_token2"], preset="PushUpdate", include_image=False)
+
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             await notify(mock_event, notification, mock_resources)
-            
+
             mock_resources["push_module"].do_command.assert_called_once()
             call_args = mock_resources["push_module"].do_command.call_args[0][0]
 
@@ -309,100 +275,86 @@ class TestNotify:
     async def test_notify_missing_email_module(self, mock_event, mock_resources):
         """Test handling when email module is missing."""
         # Create an email notification
-        notification = NotificationEmail(
-            to="test@example.com",
-            preset="Alert"
-        )
-        
+        notification = NotificationEmail(to="test@example.com", preset="Alert")
+
         # Remove the email module from resources
         mock_resources_without_email = {k: v for k, v in mock_resources.items() if k != "email_module"}
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources_without_email)
-            
+
             # Verify warning was logged
             mock_logger.warning.assert_called_once()
-    
+
     async def test_notify_missing_sms_module(self, mock_event, mock_resources):
         """Test handling when SMS module is missing."""
         # Create an SMS notification
         notification = NotificationSMS(
             to="+15555555555",
             preset="Alert",
-            include_image=False  # Don't include image
+            include_image=False,  # Don't include image
         )
-        
+
         # Remove the SMS module from resources
         mock_resources_without_sms = {k: v for k, v in mock_resources.items() if k != "sms_module"}
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources_without_sms)
-            
+
             # Verify warning was logged
             mock_logger.warning.assert_called_once()
-    
+
     async def test_notify_error_handling(self, mock_event, mock_image, mock_resources):
         """Test error handling in notify."""
         # Create an email notification
-        notification = NotificationEmail(
-            to="test@example.com",
-            preset="Alert",
-            include_image=True
-        )
+        notification = NotificationEmail(to="test@example.com", preset="Alert", include_image=True)
         notification.image = mock_image
-        
+
         # Configure email module to return an error
         mock_resources["email_module"].do_command.return_value = {"error": "Failed to send email"}
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify error was logged
             mock_logger.error.assert_called_once()
-    
+
     async def test_notify_exception_handling(self, mock_event, mock_image, mock_resources):
         """Test exception handling in notify."""
         # Create an email notification
-        notification = NotificationEmail(
-            to="test@example.com",
-            preset="Alert",
-            include_image=True
-        )
+        notification = NotificationEmail(to="test@example.com", preset="Alert", include_image=True)
         notification.image = mock_image
-        
+
         # Configure email module to raise an exception
         mock_resources["email_module"].do_command.side_effect = Exception("Test error")
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger):
+        with patch("src.notifications.getParam", return_value=mock_logger):
             # Call notify
             await notify(mock_event, notification, mock_resources)
-            
+
             # Verify error was logged
             mock_logger.error.assert_called_once()
 
     async def test_notify_missing_push_module(self, mock_event, mock_resources):
         """Test handling when push module is missing."""
-        notification = NotificationPush(
-            fcm_tokens=["test_token3"],
-            preset="PushError"
-        )
-        
+        notification = NotificationPush(fcm_tokens=["test_token3"], preset="PushError")
+
         mock_logger = MagicMock()
         mock_resources_copy = mock_resources.copy()
         del mock_resources_copy["push_module"]
-        
-        with patch('src.notifications.getParam', return_value=mock_logger):
+
+        with patch("src.notifications.getParam", return_value=mock_logger):
             await notify(mock_event, notification, mock_resources_copy)
             mock_logger.warning.assert_called_with("No push module defined, can't send push notification")
 
@@ -410,100 +362,98 @@ class TestNotify:
 @pytest.mark.asyncio
 class TestCheckSmsResponse:
     """Tests for the check_sms_response function."""
-    
+
     async def test_check_sms_response_with_messages(self, mock_resources):
         """Test checking for SMS responses with messages."""
         # Create a list of notifications including an SMS
-        notifications = [
-            NotificationSMS(to="+15555555555", preset="Alert")
-        ]
-        
+        notifications = [NotificationSMS(to="+15555555555", preset="Alert")]
+
         # Mock time
         since_time = 1625097600  # 2021-07-01T00:00:00Z
-        
+
         # Configure SMS module to return messages
         mock_resources["sms_module"].do_command.return_value = {
-            "messages": [
-                {"body": "YES", "from": "+15555555555", "time": "01/07/2021 00:05:00"}
-            ]
+            "messages": [{"body": "YES", "from": "+15555555555", "time": "01/07/2021 00:05:00"}]
         }
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger), \
-             patch('src.notifications.datetime') as mock_datetime:
+        with (
+            patch("src.notifications.getParam", return_value=mock_logger),
+            patch("src.notifications.datetime") as mock_datetime,
+        ):
             # Configure mock datetime
             mock_dt = MagicMock()
             mock_dt.strftime.return_value = "01/07/2021 00:00:00"
             mock_datetime.fromtimestamp.return_value = mock_dt
             mock_datetime.timezone = timezone
-            
+
             # Call check_sms_response
             result = await check_sms_response(notifications, since_time, mock_resources)
-            
+
             # Verify result
             assert result == "YES"
-            
+
             # Verify SMS module was called correctly
             mock_resources["sms_module"].do_command.assert_called_once()
             call_args = mock_resources["sms_module"].do_command.call_args[0][0]
             assert call_args["command"] == "get"
             assert call_args["from"] == "+15555555555"
-    
+
     async def test_check_sms_response_without_messages(self, mock_resources):
         """Test checking for SMS responses without messages."""
         # Create a list of notifications including an SMS
-        notifications = [
-            NotificationSMS(to="+15555555555", preset="Alert")
-        ]
-        
+        notifications = [NotificationSMS(to="+15555555555", preset="Alert")]
+
         # Mock time
         since_time = 1625097600  # 2021-07-01T00:00:00Z
-        
+
         # Configure SMS module to return no messages
         mock_resources["sms_module"].do_command.return_value = {"messages": []}
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger), \
-             patch('src.notifications.datetime') as mock_datetime:
+        with (
+            patch("src.notifications.getParam", return_value=mock_logger),
+            patch("src.notifications.datetime") as mock_datetime,
+        ):
             # Configure mock datetime
             mock_dt = MagicMock()
             mock_dt.strftime.return_value = "01/07/2021 00:00:00"
             mock_datetime.fromtimestamp.return_value = mock_dt
             mock_datetime.timezone = timezone
-            
+
             # Call check_sms_response
             result = await check_sms_response(notifications, since_time, mock_resources)
-            
+
             # Verify result
             assert result == ""
-    
+
     async def test_check_sms_response_without_sms_notifications(self, mock_resources):
         """Test checking for SMS responses without SMS notifications."""
         # Create a list of notifications without SMS
-        notifications = [
-            NotificationEmail(to="test@example.com", preset="Alert")
-        ]
-        
+        notifications = [NotificationEmail(to="test@example.com", preset="Alert")]
+
         # Mock time
         since_time = 1625097600  # 2021-07-01T00:00:00Z
-        
+
         # Mock the logger
         mock_logger = MagicMock()
-        with patch('src.notifications.getParam', return_value=mock_logger), \
-             patch('src.notifications.datetime') as mock_datetime:
+        with (
+            patch("src.notifications.getParam", return_value=mock_logger),
+            patch("src.notifications.datetime") as mock_datetime,
+        ):
             # Configure mock datetime
             mock_dt = MagicMock()
             mock_dt.strftime.return_value = "01/07/2021 00:00:00"
             mock_datetime.fromtimestamp.return_value = mock_dt
             mock_datetime.timezone = timezone
-            
+
             # Call check_sms_response
             result = await check_sms_response(notifications, since_time, mock_resources)
-            
+
             # Verify result
             assert result == ""
-            
+
             # Verify SMS module was not called
-            mock_resources["sms_module"].do_command.assert_not_called() 
+            mock_resources["sms_module"].do_command.assert_not_called()

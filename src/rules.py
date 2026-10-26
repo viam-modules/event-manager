@@ -11,7 +11,7 @@ from viam.media.utils.pil import viam_to_pil_image
 from viam.components.camera import CameraClient
 
 
-class TimeRange():
+class TimeRange:
     start_hour: int
     end_hour: int
 
@@ -19,11 +19,12 @@ class TimeRange():
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
-class RuleDetector():
-    type: str="detection"
+
+class RuleDetector:
+    type: str = "detection"
     camera: str
     detector: str
-    class_regex: str=".*"
+    class_regex: str = ".*"
     confidence_pct: float
     inverse_pause_secs: int
     fail_eval: Optional[bool] = None
@@ -32,11 +33,13 @@ class RuleDetector():
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
-class RuleClassifier():
-    type: str="classification"
+
+
+class RuleClassifier:
+    type: str = "classification"
     camera: str
     classifier: str
-    class_regex: str=".*"
+    class_regex: str = ".*"
     confidence_pct: float
     inverse_pause_secs: int
     fail_eval: Optional[bool] = None
@@ -46,8 +49,9 @@ class RuleClassifier():
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
-class RuleTracker():
-    type: str="tracker"
+
+class RuleTracker:
+    type: str = "tracker"
     camera: str
     tracker: str
     inverse_pause_secs: int
@@ -59,11 +63,12 @@ class RuleTracker():
         for key, value in kwargs.items():
             self.__dict__[key] = value
 
-class RuleCall():
-    type: str="call"
+
+class RuleCall:
+    type: str = "call"
     resource: str
     method: str
-    payload:str = ""
+    payload: str = ""
     result_path: str = ""
     result_function: str = ""
     result_operator: str
@@ -74,126 +79,133 @@ class RuleCall():
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             self.__dict__[key] = value
-class RuleTime():
-    type: str="time"
+
+
+class RuleTime:
+    type: str = "time"
     ranges: list[TimeRange]
     fail_eval: Optional[bool] = None
+
     def __init__(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             if isinstance(value, list):
                 self.__dict__[key] = []
                 for item in value:
-                     self.__dict__[key].append(TimeRange(**item))
+                    self.__dict__[key].append(TimeRange(**item))
             else:
                 self.__dict__[key] = value
 
+
 RuleType = Union[RuleTime, RuleDetector, RuleClassifier, RuleTracker, RuleCall]
 
+
 async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]:
-    response: Dict[str, Any] = { "triggered" : False }
+    response: Dict[str, Any] = {"triggered": False}
     match rule.type:
         case "time":
             curr_time = datetime.now()
             if isinstance(rule, RuleTime):
                 for r in rule.ranges:
                     if (curr_time.hour >= r.start_hour) and (curr_time.hour < r.end_hour):
-                        getParam('logger').debug("Time triggered")
-                        response["triggered"] = True   
+                        getParam("logger").debug("Time triggered")
+                        response["triggered"] = True
         case "detection":
             try:
                 if isinstance(rule, RuleDetector):
-                    getParam('logger').debug("Evaluating detection rule")
+                    getParam("logger").debug("Evaluating detection rule")
                     detector = _get_vision_service(rule.detector, resources)
-                    getParam('logger').debug(f"Got detector {rule.detector}")
+                    getParam("logger").debug(f"Got detector {rule.detector}")
 
                     # Get the camera component
                     camera = _get_camera_component(rule.camera, resources)
-                    getParam('logger').debug(f"Got camera {rule.camera}")
+                    getParam("logger").debug(f"Got camera {rule.camera}")
 
                     # Get images from the camera
-                    images, metadata = await camera.get_images(extra=getattr(rule, 'extra', {}))
-                    getParam('logger').debug(f"Got {len(images)} images (type={type(images)})")
+                    images, metadata = await camera.get_images(extra=getattr(rule, "extra", {}))
+                    getParam("logger").debug(f"Got {len(images)} images (type={type(images)})")
 
                     if not images:
-                        getParam('logger').warning(f"No images returned from camera '{rule.camera}'")
+                        getParam("logger").warning(f"No images returned from camera '{rule.camera}'")
                         return response
 
                     # Use the first image (usually color)
                     image = images[0]
-                    getParam('logger').debug(
+                    getParam("logger").debug(
                         f"image: {getattr(image, 'name', None)}, "
                         f"mime: {getattr(image, 'mime_type', None)}, "
                         f"size: {getattr(image, 'width', None)}x{getattr(image, 'height', None)}"
                     )
 
                     # Run detection directly with NamedImage (inherits from ViamImage)
-                    getParam('logger').debug(
-                        f"Calling get_detections on {rule.detector} "
-                        f"with mime={getattr(image, 'mime_type', 'unknown')}"
+                    getParam("logger").debug(
+                        f"Calling get_detections on {rule.detector} with mime={getattr(image, 'mime_type', 'unknown')}"
                     )
 
-                    detections = await detector.get_detections(image, extra=getattr(rule, 'extra', {}))
-                    
+                    detections = await detector.get_detections(image, extra=getattr(rule, "extra", {}))
+
                     if detections:
                         for d in detections:
                             if (d.confidence >= rule.confidence_pct) and re.search(rule.class_regex, d.class_name):
-                                getParam('logger').debug("Detection triggered")
+                                getParam("logger").debug("Detection triggered")
                                 response["triggered"] = True
                                 response["image"] = viam_to_pil_image(image)
                                 response["value"] = d.class_name
                                 response["resource"] = rule.camera
             except Exception as e:
-                getParam('logger').error(f"Error in 'detection' type rule, rule not properly evaluated: {e}")
-                if getattr(rule, 'fail_eval', None) is not None:
+                getParam("logger").error(f"Error in 'detection' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, "fail_eval", None) is not None:
                     response["triggered"] = rule.fail_eval
                     response["value"] = None
                     response["resource"] = rule.camera
-                    getParam('logger').debug(f"detection rule failed, using fail_eval: {rule.fail_eval}")
+                    getParam("logger").debug(f"detection rule failed, using fail_eval: {rule.fail_eval}")
                 # If fail_eval is None, don't modify the response (maintains original behavior)
         case "classification":
             try:
-                getParam('logger').debug("Evaluating classification rule")
+                getParam("logger").debug("Evaluating classification rule")
                 if isinstance(rule, RuleClassifier):
                     classifier = _get_vision_service(rule.classifier, resources)
-                    getParam('logger').debug(f"Got classifier {rule.classifier}")
+                    getParam("logger").debug(f"Got classifier {rule.classifier}")
 
                     # Get the camera component
                     camera = _get_camera_component(rule.camera, resources)
-                    getParam('logger').debug(f"Got camera {rule.camera}")
-                    
-                    # Get an image from the camera
-                    images, metadata = await camera.get_images(extra=getattr(rule, 'extra', {}))
-                    getParam('logger').debug(f"Got {len(images)} images")
+                    getParam("logger").debug(f"Got camera {rule.camera}")
 
-                    getParam('logger').debug(f"images type: {type(images)} length: {len(images)}")
+                    # Get an image from the camera
+                    images, metadata = await camera.get_images(extra=getattr(rule, "extra", {}))
+                    getParam("logger").debug(f"Got {len(images)} images")
+
+                    getParam("logger").debug(f"images type: {type(images)} length: {len(images)}")
 
                     if not images:
-                        getParam('logger').warning(f"No images returned from camera '{rule.camera}'")
+                        getParam("logger").warning(f"No images returned from camera '{rule.camera}'")
                         return response
                     else:
                         image = images[0]
-                        getParam('logger').debug(f"image type: {type(image)} dir: {dir(image)}")
+                        getParam("logger").debug(f"image type: {type(image)} dir: {dir(image)}")
 
                     # Now proceed to classification
-                    getParam('logger').debug(f"Calling get_classifications on {rule.classifier} with image {getattr(image, 'name', 'unknown')} mime {getattr(image, 'mime_type', 'unknown')}")
-                    classifications = await classifier.get_classifications(image, count=10, extra=getattr(rule, 'extra', {}))
+                    getParam("logger").debug(
+                        f"Calling get_classifications on {rule.classifier} with image {getattr(image, 'name', 'unknown')} mime {getattr(image, 'mime_type', 'unknown')}"
+                    )
+                    classifications = await classifier.get_classifications(
+                        image, count=10, extra=getattr(rule, "extra", {})
+                    )
 
-                    
                     if classifications:
                         for c in classifications:
                             if (c.confidence >= rule.confidence_pct) and re.search(rule.class_regex, c.class_name):
-                                getParam('logger').debug("Classification triggered")
+                                getParam("logger").debug("Classification triggered")
                                 response["triggered"] = True
                                 response["image"] = viam_to_pil_image(image)
                                 response["value"] = c.class_name
                                 response["resource"] = rule.camera
             except Exception as e:
-                getParam('logger').error(f"Error in 'classification' type rule, rule not properly evaluated: {e}")
-                if getattr(rule, 'fail_eval', None) is not None:
+                getParam("logger").error(f"Error in 'classification' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, "fail_eval", None) is not None:
                     response["triggered"] = rule.fail_eval
                     response["value"] = None
                     response["resource"] = rule.camera
-                    getParam('logger').error(f"classification rule failed, using fail_eval: {rule.fail_eval}")
+                    getParam("logger").error(f"classification rule failed, using fail_eval: {rule.fail_eval}")
                 # If fail_eval is None, don't modify the response (maintains original behavior)
         case "tracker":
             try:
@@ -201,49 +213,53 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     tracker = _get_vision_service(rule.tracker, resources)
                     # NOTE: we call capture_all_from_camera() in order to get an image and coordinates in case there is an actionable detection
                     all = await tracker.capture_all_from_camera(
-                        rule.camera, 
-                        return_classifications=False, 
-                        return_detections=True, 
+                        rule.camera,
+                        return_classifications=False,
+                        return_detections=True,
                         return_image=True,
-                        extra=getattr(rule, 'extra', {})
+                        extra=getattr(rule, "extra", {}),
                     )
                     approved_status: List[bool] = []
 
                     current = await tracker.do_command({"list_current": True})
-                    
+
                     if all.detections is not None:
                         for d in all.detections:
                             authorized = False
 
                             # NOTE: the class name of a tracker detection that has been labeled will have a label appended to it,
                             #  so we strip this label to match against the keys in current["list_current"]
-                            class_without_label = re.sub(r'\s+\(label:\s.*', '', d.class_name)
+                            class_without_label = re.sub(r"\s+\(label:\s.*", "", d.class_name)
                             list_current = current.get("list_current", {})
-                            getParam('logger').debug(class_without_label + "-" + str(list_current))
+                            getParam("logger").debug(class_without_label + "-" + str(list_current))
 
                             if isinstance(list_current, dict) and class_without_label in list_current:
                                 k = list_current[class_without_label]
-                                if isinstance(k, dict) and (k.get("face_id_label") or k.get("manual_label") or k.get("re_id_label")):
+                                if isinstance(k, dict) and (
+                                    k.get("face_id_label") or k.get("manual_label") or k.get("re_id_label")
+                                ):
                                     authorized = True
                                     response["known_person_seen"] = True
                                 approved_status.append(authorized)
                                 if not authorized and all.image is not None:
-                                    response["image"] = viam_to_pil_image(all.image).crop((d.x_min, d.y_min, d.x_max, d.y_max))
+                                    response["image"] = viam_to_pil_image(all.image).crop(
+                                        (d.x_min, d.y_min, d.x_max, d.y_max)
+                                    )
                                     response["value"] = class_without_label
                                     response["resource"] = rule.camera
-                    getParam('logger').debug(approved_status)
+                    getParam("logger").debug(approved_status)
                     if len(approved_status) > 0 and logic.NOR(approved_status):
-                        getParam('logger').info("Tracker triggered")
-                        getParam('logger').debug(response)
+                        getParam("logger").info("Tracker triggered")
+                        getParam("logger").debug(response)
 
                         response["triggered"] = True
             except Exception as e:
-                getParam('logger').error(f"Error in 'tracker' type rule, rule not properly evaluated: {e}")
-                if getattr(rule, 'fail_eval', None) is not None:
+                getParam("logger").error(f"Error in 'tracker' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, "fail_eval", None) is not None:
                     response["triggered"] = rule.fail_eval
                     response["value"] = None
                     response["resource"] = rule.camera
-                    getParam('logger').debug(f"tracker rule failed, using fail_eval: {rule.fail_eval}")
+                    getParam("logger").debug(f"tracker rule failed, using fail_eval: {rule.fail_eval}")
                 # If fail_eval is None, don't modify the response (maintains original behavior)
         case "call":
             try:
@@ -252,16 +268,16 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     if rule.result_path:
                         call_res = get_value_by_dot_notation(call_res, rule.result_path)
                         if call_res == None:
-                            getParam('logger').error(f"data not found in path {rule.result_path}")
+                            getParam("logger").error(f"data not found in path {rule.result_path}")
                             return response
 
-                    getParam('logger').debug(call_res)
+                    getParam("logger").debug(call_res)
                     if rule.result_function:
                         match rule.result_function:
                             case "len":
                                 call_res = len(call_res)
                             case "any":
-                                call_res = any(call_res)          
+                                call_res = any(call_res)
 
                     triggered = False
                     match rule.result_operator:
@@ -272,7 +288,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                         case "lt":
                             triggered = call_res < rule.result_value
                         case "lte":
-                            triggered = call_res <= rule.result_value 
+                            triggered = call_res <= rule.result_value
                         case "gt":
                             triggered = call_res > rule.result_value
                         case "gte":
@@ -287,39 +303,45 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     response["triggered"] = triggered
                     response["value"] = call_res
                     response["resource"] = rule.resource
-                    getParam('logger').debug(f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}")
+                    getParam("logger").debug(
+                        f"call rule eval to {triggered} call_res {call_res} result_val {rule.result_value}"
+                    )
             except Exception as e:
-                getParam('logger').error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
-                if getattr(rule, 'fail_eval', None) is not None:
+                getParam("logger").error(f"Error in 'call' type rule, rule not properly evaluated: {e}")
+                if getattr(rule, "fail_eval", None) is not None:
                     response["triggered"] = rule.fail_eval
                     response["value"] = None
                     response["resource"] = rule.resource
-                    getParam('logger').debug(f"call rule failed, using fail_eval: {rule.fail_eval}")
+                    getParam("logger").debug(f"call rule failed, using fail_eval: {rule.fail_eval}")
                 # If fail_eval is None, don't modify the response (maintains original behavior)
     return response
+
 
 def logical_trigger(logic_type: str, list: List[bool]) -> bool:
     logic_function = getattr(logic, logic_type)
     return logic_function(list)
 
+
 def _get_vision_service(name: str, resources: Dict[str, Any]) -> Vision:
-    actual = resources['_deps'][VisionClient.get_resource_name(name)]
+    actual = resources["_deps"][VisionClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)
     return resources[actual]
 
+
 def _get_camera_component(name: str, resources: Dict[str, Any]):
-    actual = resources['_deps'][CameraClient.get_resource_name(name)]
+    actual = resources["_deps"][CameraClient.get_resource_name(name)]
     if resources.get(actual) == None:
         # initialize if it is not already
         resources[actual] = cast(CameraClient, actual)
     return resources[actual]
 
+
 def get_value_by_dot_notation(data: Any, path: str) -> Optional[Any]:
     """Access a nested dictionary value using dot notation."""
 
-    keys = path.split('.')
+    keys = path.split(".")
     value = data
 
     for key in keys:
