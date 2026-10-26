@@ -77,7 +77,7 @@ class TestTrackerRuleEvaluation:
                         result = await eval_rule(rule, mock_resources)
 
                         # The NOR function should trigger for unauthorized persons
-                        assert result["triggered"] == True
+                        assert result["triggered"] is True
                         assert result["value"] == "person_123"
                         assert result["resource"] == "cam1"
                         assert result["image"] == mock_cropped_image
@@ -123,9 +123,9 @@ class TestTrackerRuleEvaluation:
                     result = await eval_rule(rule, mock_resources)
 
                     # Should not trigger for authorized persons
-                    assert result["triggered"] == False
+                    assert result["triggered"] is False
                     assert "known_person_seen" in result
-                    assert result["known_person_seen"] == True
+                    assert result["known_person_seen"] is True
 
                     # Check that correct methods were called
                     mock_tracker.capture_all_from_camera.assert_called_once_with(
@@ -183,7 +183,7 @@ class TestTrackerRuleEvaluation:
                         # The NOR function only triggers when ALL people are unauthorized.
                         # Since there's a mix of authorized and unauthorized, it doesn't trigger.
                         # This is due to NOR(approved_status) = NOR([False, True]) = False
-                        assert result["triggered"] == False
+                        assert result["triggered"] is False
                         assert "known_person_seen" in result
 
                         # Check that correct methods were called
@@ -236,9 +236,9 @@ class TestTrackerRuleEvaluation:
                     result = await eval_rule(rule, mock_resources)
 
                     # Should not trigger as this is a known person
-                    assert result["triggered"] == False
+                    assert result["triggered"] is False
                     assert "known_person_seen" in result
-                    assert result["known_person_seen"] == True
+                    assert result["known_person_seen"] is True
 
     async def test_tracker_rule_no_detections(self, mock_logger, mock_resources):
         """Test tracker rule evaluation when no persons are detected"""
@@ -265,7 +265,7 @@ class TestTrackerRuleEvaluation:
                 result = await eval_rule(rule, mock_resources)
 
                 # Should not trigger when no detections
-                assert result["triggered"] == False
+                assert result["triggered"] is False
 
                 # Check that correct methods were called
                 mock_tracker.capture_all_from_camera.assert_called_once_with(
@@ -292,7 +292,7 @@ class TestTrackerRuleEvaluation:
                     result = await eval_rule(rule, mock_resources)
 
                     # If eval_rule caught the exception, this should pass
-                    assert result["triggered"] == False
+                    assert result["triggered"] is False
                     mock_logger.error.assert_called_once()
                 except Exception:
                     # The eval_rule implementation might not catch exceptions

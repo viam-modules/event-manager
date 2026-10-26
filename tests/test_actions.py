@@ -36,14 +36,14 @@ class TestActionFunctions:
 
         # Verify all actions are now True
         for action in event.actions:
-            assert action.taken == True
+            assert action.taken is True
 
         # Test flipping from all True to False
         flip_action_status(event, False)
 
         # Verify all actions are now False
         for action in event.actions:
-            assert action.taken == False
+            assert action.taken is False
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ class TestActionEvaluation:
         result = await eval_action(event, action, "")
 
         # Verify result is False
-        assert result == False
+        assert result is False
 
     async def test_eval_action_response_match(self):
         """Test eval_action with response matching"""
@@ -77,13 +77,13 @@ class TestActionEvaluation:
         with patch("src.actions.getParam", return_value=mock_logger):
             # Test with matching SMS message
             result = await eval_action(event, action, "yes please turn on the light")
-            assert result == True
+            assert result is True
             mock_logger.debug.assert_called_once()
 
             # Reset mock and test with non-matching message
             mock_logger.reset_mock()
             result = await eval_action(event, action, "no don't turn on the light")
-            assert result == False
+            assert result is False
 
     async def test_eval_action_when_secs(self):
         """Test eval_action with when_secs timer"""
@@ -97,12 +97,12 @@ class TestActionEvaluation:
 
         # Evaluate the action - should return True since more than 4 minutes have passed
         result = await eval_action(event, action, "")
-        assert result == True
+        assert result is True
 
         # Test with insufficient time passed
         action.when_secs = 600  # 10 minutes
         result = await eval_action(event, action, "")
-        assert result == False
+        assert result is False
 
     async def test_eval_action_no_conditions(self):
         """Test eval_action with no conditions"""
@@ -115,7 +115,7 @@ class TestActionEvaluation:
 
         # Evaluate the action - should return False as no conditions are met
         result = await eval_action(event, action, "")
-        assert result == False
+        assert result is False
 
     async def test_do_action(self):
         """Test do_action calls the resource method and updates action status"""
@@ -142,5 +142,5 @@ class TestActionEvaluation:
             mock_call_method.assert_called_once_with(resources, action.resource, action.method, action.payload, event)
 
             # Verify action fields were updated
-            assert action.taken == True
+            assert action.taken is True
             assert action.last_taken == current_time

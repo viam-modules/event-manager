@@ -53,7 +53,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == True
+                assert result["triggered"] is True
                 mock_logger.debug.assert_called_once_with("Time triggered")
 
     async def test_time_rule_outside_range(self):
@@ -72,7 +72,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == False
+                assert result["triggered"] is False
                 mock_logger.debug.assert_not_called()
 
     async def test_time_rule_at_range_start(self):
@@ -91,7 +91,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == True
+                assert result["triggered"] is True
                 mock_logger.debug.assert_called_once_with("Time triggered")
 
     async def test_time_rule_at_range_end(self):
@@ -110,7 +110,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == False
+                assert result["triggered"] is False
                 mock_logger.debug.assert_not_called()
 
     async def test_time_rule_multiple_ranges_in_range(self):
@@ -129,7 +129,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == True
+                assert result["triggered"] is True
                 mock_logger.debug.assert_called_once_with("Time triggered")
 
     async def test_time_rule_multiple_ranges_outside_range(self):
@@ -148,7 +148,7 @@ class TestTimeRuleEvaluation:
             with patch("src.rules.getParam", return_value=mock_logger):
                 result = await eval_rule(rule, {})
 
-                assert result["triggered"] == False
+                assert result["triggered"] is False
                 mock_logger.debug.assert_not_called()
 
     @pytest.mark.xfail(reason="Current implementation does not properly handle overnight ranges")
@@ -172,7 +172,7 @@ class TestTimeRuleEvaluation:
 
                 # NOTE: This will fail with the current implementation
                 # A proper implementation would need to handle overnight ranges
-                assert result["triggered"] == True
+                assert result["triggered"] is True
                 mock_logger.debug.assert_called_once_with("Time triggered")
 
     async def test_time_rule_all_day(self):
@@ -194,5 +194,5 @@ class TestTimeRuleEvaluation:
                 with patch("src.rules.getParam", return_value=mock_logger):
                     result = await eval_rule(rule, {})
 
-                    assert result["triggered"] == True
+                    assert result["triggered"] is True
                     mock_logger.debug.assert_called_once_with("Time triggered")
