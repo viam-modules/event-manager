@@ -583,7 +583,7 @@ class eventManager(Sensor, Reconfigurable):
                         event.triggered_rules = {i: result for i, result in enumerate(rule_results)}
 
                         for n in event.notifications:
-                            if triggered_image != None:
+                            if triggered_image is not None:
                                 n.image = triggered_image
                             await notifications.notify(event, n, event_resources)
 

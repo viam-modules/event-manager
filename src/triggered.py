@@ -84,7 +84,7 @@ async def get_triggered_cloud(
         # Note: the assumption is made that no other tabular data is being stored for this component
         query: List[bytes] = []
         match: Dict[str, Any] = {"component_name": event_manager_name}
-        if event_name != None:
+        if event_name is not None:
             match[f"data.readings.state.{event_name}"] = {"$exists": True}
             query.append(bson.encode({"$match": {f"data.readings.state.{event_name}": {"$exists": True}}}))
         query.append(bson.encode({"$match": match}))
@@ -97,7 +97,7 @@ async def get_triggered_cloud(
         for tabular in tabular_data:
             state = tabular["data"]["readings"]["state"]
             for reading in state:
-                if event_name == None or event_name == reading:
+                if event_name is None or event_name == reading:
                     matched_index_by_dt[state[reading]["last_triggered"]] = len(matched)
                     triggered_camera = ""
                     if "triggered_camera" in state[reading]:
@@ -206,7 +206,7 @@ def _get_video_store(name: str, resources: Dict[str, Any]) -> Generic:
         resource_name = CameraClient.get_resource_name(name)
         is_generic = False
     actual = resources["_deps"][resource_name]
-    if resources.get(actual) == None:
+    if resources.get(actual) is None:
         # initialize if it is not already
         if is_generic:
             resources[actual] = cast(GenericClient, actual)

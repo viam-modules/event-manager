@@ -267,7 +267,7 @@ async def eval_rule(rule: RuleType, resources: Dict[str, Any]) -> Dict[str, Any]
                     call_res = await call_method(resources, rule.resource, rule.method, rule.payload, None)
                     if rule.result_path:
                         call_res = get_value_by_dot_notation(call_res, rule.result_path)
-                        if call_res == None:
+                        if call_res is None:
                             getParam("logger").error(f"data not found in path {rule.result_path}")
                             return response
 
@@ -324,7 +324,7 @@ def logical_trigger(logic_type: str, list: List[bool]) -> bool:
 
 def _get_vision_service(name: str, resources: Dict[str, Any]) -> Vision:
     actual = resources["_deps"][VisionClient.get_resource_name(name)]
-    if resources.get(actual) == None:
+    if resources.get(actual) is None:
         # initialize if it is not already
         resources[actual] = cast(VisionClient, actual)
     return resources[actual]
@@ -332,7 +332,7 @@ def _get_vision_service(name: str, resources: Dict[str, Any]) -> Vision:
 
 def _get_camera_component(name: str, resources: Dict[str, Any]):
     actual = resources["_deps"][CameraClient.get_resource_name(name)]
-    if resources.get(actual) == None:
+    if resources.get(actual) is None:
         # initialize if it is not already
         resources[actual] = cast(CameraClient, actual)
     return resources[actual]
