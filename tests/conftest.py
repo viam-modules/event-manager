@@ -1,9 +1,8 @@
-import pytest
 import sys
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
-import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -16,22 +15,26 @@ sys.path.append(str(Path(__file__).parent.parent))
 #     yield loop
 #     loop.close()
 
+
 @pytest.fixture
 def mock_logger():
     """Return a mock logger for testing."""
     logger = MagicMock()
     return logger
 
+
 @pytest.fixture
 def mock_resources():
     """Return mock resources for testing."""
     return {"_deps": {}}
+
 
 @pytest.fixture
 def mock_vision_service():
     """Return a mock vision service for testing."""
     service = AsyncMock()
     return service
+
 
 @pytest.fixture
 def mock_image():
@@ -40,12 +43,15 @@ def mock_image():
     image.crop.return_value = MagicMock()
     return image
 
+
 # Mock for regex substitution used in tracker rules
 @pytest.fixture
 def mock_regex_sub():
     """Mock function for re.sub that handles tracker label stripping."""
+
     def _sub_side_effect(pattern, replacement, string):
-        if '(label:' in string:
-            return string.split('(label:')[0].strip()
+        if "(label:" in string:
+            return string.split("(label:")[0].strip()
         return string
-    return _sub_side_effect 
+
+    return _sub_side_effect

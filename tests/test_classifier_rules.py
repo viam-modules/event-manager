@@ -1,14 +1,13 @@
-import unittest
 import sys
-import os
+import unittest
 from pathlib import Path
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add the source directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.rules import RuleClassifier, RuleCall, eval_rule
+from src.rules import RuleCall, RuleClassifier, eval_rule
+
 
 class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
     async def test_classifier_rule_evaluation_matching(self):
@@ -19,39 +18,37 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.camera = "test_camera"
         rule.confidence_pct = 0.7
         rule.class_regex = "cat"
-        
+
         # Mock dependencies
         mock_classification = MagicMock()
         mock_classification.class_name = "cat"
         mock_classification.confidence = 0.8
-        
+
         mock_image = MagicMock()
         mock_camera = AsyncMock()
         mock_camera.get_images.return_value = ([mock_image], {})
-        
+
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
-        
+
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
-        
+
         # Create a mock PIL image
         mock_pil_image = MagicMock()
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules._get_vision_service', return_value=mock_classifier):
-                with patch('src.rules._get_camera_component', return_value=mock_camera):
-                    with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules._get_vision_service", return_value=mock_classifier):
+                with patch("src.rules._get_camera_component", return_value=mock_camera):
+                    with patch("src.rules.viam_to_pil_image", return_value=mock_pil_image):
                         result = await eval_rule(rule, mock_resources)
-                        
+
                         self.assertTrue(result["triggered"])
                         mock_camera.get_images.assert_called_once()
-                        mock_classifier.get_classifications.assert_called_once_with(
-                            mock_image, count=10, extra={}
-                        )
+                        mock_classifier.get_classifications.assert_called_once_with(mock_image, count=10, extra={})
                         self.assertEqual(result["value"], "cat")
                         self.assertEqual(result["resource"], "test_camera")
-    
+
     async def test_classifier_rule_evaluation_wrong_class(self):
         """Test evaluating a classifier rule with non-matching class name"""
         rule = RuleClassifier()
@@ -60,30 +57,30 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.camera = "test_camera"
         rule.confidence_pct = 0.7
         rule.class_regex = "cat"
-        
+
         # Mock dependencies with non-matching class name
         mock_classification = MagicMock()
         mock_classification.class_name = "dog"
         mock_classification.confidence = 0.8
-        
+
         mock_image = MagicMock()
         mock_camera = AsyncMock()
         mock_camera.get_images.return_value = ([mock_image], {})
-        
+
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
-        
+
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules._get_vision_service', return_value=mock_classifier):
-                with patch('src.rules._get_camera_component', return_value=mock_camera):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules._get_vision_service", return_value=mock_classifier):
+                with patch("src.rules._get_camera_component", return_value=mock_camera):
                     # Don't need to mock viam_to_pil_image here as it shouldn't be called
                     result = await eval_rule(rule, mock_resources)
-                    
+
                     self.assertFalse(result["triggered"])
-    
+
     async def test_classifier_rule_evaluation_low_confidence(self):
         """Test evaluating a classifier rule with low confidence score"""
         rule = RuleClassifier()
@@ -92,30 +89,30 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.camera = "test_camera"
         rule.confidence_pct = 0.7
         rule.class_regex = "cat"
-        
+
         # Mock dependencies with low confidence
         mock_classification = MagicMock()
         mock_classification.class_name = "cat"
         mock_classification.confidence = 0.6  # Below threshold
-        
+
         mock_image = MagicMock()
         mock_camera = AsyncMock()
         mock_camera.get_images.return_value = ([mock_image], {})
-        
+
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = [mock_classification]
-        
+
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules._get_vision_service', return_value=mock_classifier):
-                with patch('src.rules._get_camera_component', return_value=mock_camera):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules._get_vision_service", return_value=mock_classifier):
+                with patch("src.rules._get_camera_component", return_value=mock_camera):
                     # Don't need to mock viam_to_pil_image here as it shouldn't be called
                     result = await eval_rule(rule, mock_resources)
-                    
+
                     self.assertFalse(result["triggered"])
-    
+
     async def test_classifier_rule_with_multiple_classifications(self):
         """Test evaluating a classifier rule with multiple classifications"""
         rule = RuleClassifier()
@@ -124,35 +121,36 @@ class TestClassifierRuleEvaluation(unittest.IsolatedAsyncioTestCase):
         rule.camera = "test_camera"
         rule.confidence_pct = 0.7
         rule.class_regex = "(cat|dog)"  # Matches both cat and dog
-        
+
         # Mock dependencies with multiple classifications
         mock_classifications = [
             MagicMock(class_name="bird", confidence=0.9),
             MagicMock(class_name="dog", confidence=0.8),
-            MagicMock(class_name="cat", confidence=0.6)  # Below threshold
+            MagicMock(class_name="cat", confidence=0.6),  # Below threshold
         ]
-        
+
         mock_image = MagicMock()
         mock_camera = AsyncMock()
         mock_camera.get_images.return_value = ([mock_image], {})
-        
+
         mock_classifier = AsyncMock()
         mock_classifier.get_classifications.return_value = mock_classifications
-        
+
         mock_logger = MagicMock()
         mock_resources = {"_deps": {}}
-        
+
         # Create a mock PIL image
         mock_pil_image = MagicMock()
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules._get_vision_service', return_value=mock_classifier):
-                with patch('src.rules._get_camera_component', return_value=mock_camera):
-                    with patch('src.rules.viam_to_pil_image', return_value=mock_pil_image):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules._get_vision_service", return_value=mock_classifier):
+                with patch("src.rules._get_camera_component", return_value=mock_camera):
+                    with patch("src.rules.viam_to_pil_image", return_value=mock_pil_image):
                         result = await eval_rule(rule, mock_resources)
-                        
+
                         self.assertTrue(result["triggered"])
                         self.assertEqual(result["value"], "dog")
+
 
 class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
     async def test_call_rule_with_error(self):
@@ -161,18 +159,18 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         rule.type = "call"
         rule.resource = "test_resource"
         rule.method = "test_method"
-        
+
         # Mock dependencies to raise an exception
         mock_logger = MagicMock()
         mock_resources = {}
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules.call_method', side_effect=Exception("Test error")):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules.call_method", side_effect=Exception("Test error")):
                 result = await eval_rule(rule, mock_resources)
-                
+
                 self.assertFalse(result["triggered"])
                 mock_logger.error.assert_called()
-    
+
     async def test_call_rule_with_missing_result_path(self):
         """Test call rule with missing result path"""
         rule = RuleCall()
@@ -180,31 +178,32 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         rule.resource = "test_resource"
         rule.method = "test_method"
         rule.result_path = "nonexistent.path"
-        
+
         # Mock dependencies
         mock_call_result = {"temperature": 30}  # Does not contain nonexistent.path
         mock_logger = MagicMock()
         mock_resources = {}
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
-            with patch('src.rules.call_method', return_value=mock_call_result):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
+            with patch("src.rules.call_method", return_value=mock_call_result):
                 result = await eval_rule(rule, mock_resources)
-                
+
                 self.assertFalse(result["triggered"])
                 mock_logger.error.assert_called()
-    
+
     async def test_unknown_rule_type(self):
         """Test evaluating a rule with unknown type"""
         rule = MagicMock()
         rule.type = "unknown_type"
-        
+
         mock_logger = MagicMock()
         mock_resources = {}
-        
-        with patch('src.rules.getParam', return_value=mock_logger):
+
+        with patch("src.rules.getParam", return_value=mock_logger):
             result = await eval_rule(rule, mock_resources)
-            
+
             self.assertFalse(result["triggered"])
 
-if __name__ == '__main__':
-    unittest.main() 
+
+if __name__ == "__main__":
+    unittest.main()
