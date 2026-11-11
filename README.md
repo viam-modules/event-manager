@@ -43,15 +43,30 @@ The event-manager resource implements the [rdk sensor component API](https://git
 Examples:
 
 ```python
-await em.do_command({"get_triggered": {"number": 5, "organization_id": "adasdsadasw"}}) # get 5 most recent triggered across all configured events
-await em.do_command({"get_triggered": {"number": 5, "event": "Pets out at night", "organization_id": "adasdsadasw"}}) # get 5 most recent triggers for event "Pets out at night"
+await em.do_command(
+    {"get_triggered": {"number": 5, "organization_id": "adasdsadasw"}}
+)  # get 5 most recent triggered across all configured events
+await em.do_command(
+    {"get_triggered": {"number": 5, "event": "Pets out at night", "organization_id": "adasdsadasw"}}
+)  # get 5 most recent triggers for event "Pets out at night"
 
-await em.do_command({"delete_triggered": {"id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX", "location_id": "dsafadad", "organization_id": "adasdsadasw"}}) # delete triggered event based on ID
+await em.do_command(
+    {
+        "delete_triggered": {
+            "id": "FRgcwnOTZl4FEXiLG7p1KLcpmSX",
+            "location_id": "dsafadad",
+            "organization_id": "adasdsadasw",
+        }
+    }
+)  # delete triggered event based on ID
 
-await em.do_command({"trigger_event": {"event": "Unexpected person"}}) # manually trigger the "Unexpected person" event
-await em.do_command({"pause_triggered": {"event": "Unexpected person"}}) # pause actioning on the triggered "Unexpected person" event
-await em.do_command({"respond_triggered": {"event": "Unexpected person", "response": "2"}}) # respond "2" to the triggered "Unexpected person" event
-
+await em.do_command({"trigger_event": {"event": "Unexpected person"}})  # manually trigger the "Unexpected person" event
+await em.do_command(
+    {"pause_triggered": {"event": "Unexpected person"}}
+)  # pause actioning on the triggered "Unexpected person" event
+await em.do_command(
+    {"respond_triggered": {"event": "Unexpected person", "response": "2"}}
+)  # respond "2" to the triggered "Unexpected person" event
 ```
 
 #### get_triggered

@@ -1,10 +1,12 @@
-from .notificationClass import NotificationEmail, NotificationSMS, NotificationWebhookGET, NotificationPush
-from .rules import RuleClassifier, RuleDetector, RuleTracker,RuleTime, RuleCall
 from .actionClass import Action
+from .globals import getParam
+from .notificationClass import NotificationEmail, NotificationPush, NotificationSMS, NotificationWebhookGET
+from .rules import RuleCall, RuleClassifier, RuleDetector, RuleTime, RuleTracker
 
-class Event():
+
+class Event:
     name: str
-    state: str = 'paused'
+    state: str = "paused"
     capture_video: bool = False
     video_capture_resource: str
     event_video_capture_padding_secs: int = 10
@@ -16,9 +18,9 @@ class Event():
     paused_until: float = 0
     pause_reason: str = ""
     modes: list = ["inactive"]
-    rule_logic_type: str = 'AND'
-    rules: list[RuleDetector|RuleClassifier|RuleTime|RuleTracker|RuleCall]
-    notifications: list[NotificationSMS|NotificationEmail|NotificationWebhookGET|NotificationPush]
+    rule_logic_type: str = "AND"
+    rules: list[RuleDetector | RuleClassifier | RuleTime | RuleTracker | RuleCall]
+    notifications: list[NotificationSMS | NotificationEmail | NotificationWebhookGET | NotificationPush]
     actions: list[Action]
     actions_paused: bool = False
     triggered_rules: dict = {}
@@ -34,8 +36,6 @@ class Event():
     continuous_trigger_start_time: float = 0  # When the event first started triggering continuously
 
     def __init__(self, **kwargs):
-        notification_settings = kwargs.get('notification_settings')
-        
         # these are optional
         self.__dict__["actions"] = []
         self.__dict__["notifications"] = []
@@ -46,17 +46,11 @@ class Event():
                     for item in value:
                         if item["type"] == "sms":
                             for s in item["to"]:
-                                sms = {
-                                    "preset": item["preset"],
-                                    "to": s
-                                }
+                                sms = {"preset": item["preset"], "to": s}
                                 self.__dict__[key].append(NotificationSMS(**sms))
                         elif item["type"] == "email":
                             for s in item["to"]:
-                                email = {
-                                    "preset": item["preset"],
-                                    "to": s
-                                }
+                                email = {"preset": item["preset"], "to": s}
                                 self.__dict__[key].append(NotificationEmail(**email))
                         elif item["type"] == "webhook_get":
                             self.__dict__[key].append(NotificationWebhookGET(**item))
@@ -101,21 +95,22 @@ class Event():
 
         # Calculate seconds since continuous triggering started
         seconds_since_start = int(current_time - self.continuous_trigger_start_time)
-        
+
         # Find the applicable backoff threshold
         new_adjustment = 0
         for threshold, adjustment in sorted(self.backoff_schedule.items()):
             if seconds_since_start >= threshold:
                 new_adjustment = adjustment - self.pause_alerting_on_event_secs
-        
+
         if new_adjustment != self.backoff_adjustment:
             self.backoff_adjustment = new_adjustment
             try:
                 new_pause_duration = self.get_effective_pause_duration()
-                msg = (f"Event {self.name} backoff schedule applied. "
-                       f"Time since first trigger: {seconds_since_start}s. "
-                       f"Pause duration adjusted to {new_pause_duration}s.")
-                getParam('logger').debug(msg)
+                msg = (
+                    f"Event {self.name} backoff schedule applied. "
+                    f"Time since first trigger: {seconds_since_start}s. "
+                    f"Pause duration adjusted to {new_pause_duration}s."
+                )
+                getParam("logger").debug(msg)
             except Exception:
                 pass
-
